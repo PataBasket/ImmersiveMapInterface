@@ -93,6 +93,20 @@ namespace ImmersiveMapInterface.Board
 			}
 		}
 
+		private void UpdateRendererColor(Renderer renderer, BoardState.Cell cell)
+		{
+			if (renderer == null) return;
+			
+			Color color = cell switch
+			{
+				BoardState.Cell.ColorA => colorA,
+				BoardState.Cell.ColorB => colorB,
+				_ => colorEmpty
+			};
+			
+			renderer.material.color = color;
+		}
 	}
 }
+
 
