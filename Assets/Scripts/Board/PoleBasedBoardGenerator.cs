@@ -25,6 +25,7 @@ namespace ImmersiveMapInterface.Board
         [SerializeField] private float pieceScale = 0.8f;
         [SerializeField] private Color emptyColor = new Color(0.8f, 0.8f, 0.8f, 0.3f);
 		[SerializeField] private Vector3 pieceRotationEuler = new Vector3(0f, 0f, 0f);
+        [SerializeField] private bool addColliderIfMissing = true;
 
         private GameObject[,] pieceObjects = new GameObject[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
 
@@ -78,9 +79,23 @@ namespace ImmersiveMapInterface.Board
 				Quaternion worldRot = Quaternion.Euler(pieceRotationEuler);
 				
 				Transform parentForPiece = piecesRoot != null ? piecesRoot : transform;
-				GameObject piece = Instantiate(piecePrefab, worldPos, worldRot, parentForPiece);
+                    GameObject piece = Instantiate(piecePrefab, worldPos, worldRot, parentForPiece);
                     piece.name = $"Piece_P{poleIndex}_S{slotIndex}";
                     piece.transform.localScale = Vector3.one * pieceScale;
+                    if (addColliderIfMissing)
+                    {
+                        var col = piece.GetComponent<Collider>();
+                        if (col == null)
+                        {
+                            var r = piece.GetComponentInChildren<Renderer>();
+                            var sc = piece.AddComponent<SphereCollider>();
+                            if (r != null)
+                            {
+                                float rad = Mathf.Max(r.bounds.extents.x, Mathf.Max(r.bounds.extents.y, r.bounds.extents.z));
+                                sc.radius = Mathf.Max(0.01f, rad);
+                            }
+                        }
+                    }
                     
                     pieceObjects[poleIndex, slotIndex] = piece;
                 }
