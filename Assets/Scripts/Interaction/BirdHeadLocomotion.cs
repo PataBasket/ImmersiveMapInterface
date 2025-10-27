@@ -38,6 +38,12 @@ namespace ImmersiveMapInterface.Interaction
 			TryCacheDevices();
 		}
 
+		private void OnEnable()
+		{
+			AutoAssignReferences();
+			TryCacheDevices();
+		}
+
 		private void AutoAssignReferences()
 		{
 			if (xrRigRoot == null)
@@ -63,6 +69,11 @@ namespace ImmersiveMapInterface.Interaction
 			}
 			Vector2 move = ReadAxis(leftHandDevice, CommonUsages.primary2DAxis);
 			Vector2 look2 = allowVerticalAdjust ? ReadAxis(rightHandDevice, CommonUsages.primary2DAxis) : Vector2.zero;
+			if (!leftHandDevice.isValid && Application.isPlaying)
+			{
+				// Simple one-shot hint if controllers are not detected
+				Debug.LogWarning("BirdHeadLocomotion: Left controller not detected. Check OpenXR controller profile and that hand-tracking isn't disabling controllers.");
+			}
 
 			if (move.sqrMagnitude > 0.0001f)
 			{
