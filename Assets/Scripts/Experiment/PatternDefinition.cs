@@ -34,13 +34,25 @@ namespace ImmersiveMapInterface.Experiment
 
         public IEnumerable<(int poleIndex, int slotIndex)> EnumerateAllTargetCells()
         {
-            foreach (var c in EnumerateLineCells(line1)) yield return c;
-            foreach (var c in EnumerateLineCells(line2)) yield return c;
-            foreach (var c in EnumerateLineCells(line3)) yield return c;
+            if (TryGetLineCells(line1, out var cells1, out _))
+            {
+                foreach (var c in cells1) yield return c;
+            }
+            if (TryGetLineCells(line2, out var cells2, out _))
+            {
+                foreach (var c in cells2) yield return c;
+            }
+            if (TryGetLineCells(line3, out var cells3, out _))
+            {
+                foreach (var c in cells3) yield return c;
+            }
         }
 
-        public static IEnumerable<(int poleIndex, int slotIndex)> EnumerateLineCells(LineEndpoints line)
+        public static bool TryGetLineCells(LineEndpoints line, out List<(int poleIndex, int slotIndex)> cells, out string error)
         {
+            cells = new List<(int poleIndex, int slotIndex)>(4);
+            error = string.Empty;
+
             GridFromPole(line.a.poleIndex, out int ax, out int az);
             GridFromPole(line.b.poleIndex, out int bx, out int bz);
             int ay = line.a.slotIndex;
@@ -50,8 +62,11 @@ namespace ImmersiveMapInterface.Experiment
             int dy = by - ay;
             int dz = bz - az;
 
-            // must be straight length 4: each component abs is 0 or 3; not all zero
-            if (!IsValidLength4(dx, dy, dz)) yield break;
+            if (!IsValidLength4(dx, dy, dz))
+            {
+                error = $"Endpoints must define a straight length-4 line. d=({dx},{dy},{dz}).";
+                return false;
+            }
 
             int stepx = SignNonZero(dx);
             int stepy = SignNonZero(dy);
@@ -63,9 +78,14 @@ namespace ImmersiveMapInterface.Experiment
                 int y = ay + stepy * i;
                 int z = az + stepz * i;
                 if (!PoleBasedBoardState.IsValidGrid(x, z) || (uint)y >= PoleBasedBoardState.PiecesPerPole)
-                    yield break;
-                yield return (PoleBasedBoardState.GridToPoleIndex(x, z), y);
+                {
+                    error = $"Computed cell ({x},{y},{z}) is out of bounds.";
+                    cells.Clear();
+                    return false;
+                }
+                cells.Add((PoleBasedBoardState.GridToPoleIndex(x, z), y));
             }
+            return true;
         }
 
         private static void GridFromPole(int poleIndex, out int x, out int z)
@@ -90,4 +110,3 @@ namespace ImmersiveMapInterface.Experiment
         }
     }
 }
-
