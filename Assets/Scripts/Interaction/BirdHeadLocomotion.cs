@@ -22,6 +22,11 @@ namespace ImmersiveMapInterface.Interaction
 		[SerializeField] private bool allowVerticalAdjust = true;
 		[SerializeField] private float verticalSpeed = 1.0f; // meters per second via right stick Y
 
+		[Header("Bounds (optional)")]
+		[SerializeField] private bool constrainToBounds = false;
+		[SerializeField] private Transform boundsCenter; // e.g., BoardRoot
+		[SerializeField] private Vector3 boundsHalfSize = new Vector3(8f, 8f, 8f);
+
 		private InputDevice leftHandDevice;
 		private InputDevice rightHandDevice;
 		private float initialY;
@@ -68,7 +73,7 @@ namespace ImmersiveMapInterface.Interaction
 				TryCacheDevices();
 			}
 			Vector2 move = ReadAxis(leftHandDevice, CommonUsages.primary2DAxis);
-			Vector2 look2 = allowVerticalAdjust ? ReadAxis(rightHandDevice, CommonUsages.primary2DAxis) : Vector2.zero;
+			Vector2 look2 = allowVerticalAdjust ? ReadAxisWithFallback(rightHandDevice) : Vector2.zero;
 			if (!leftHandDevice.isValid && Application.isPlaying)
 			{
 				// Simple one-shot hint if controllers are not detected
@@ -105,6 +110,17 @@ namespace ImmersiveMapInterface.Interaction
 				p.y = targetHeight;
 				xrRigRoot.position = p;
 			}
+
+			// Optional bounds constraint
+			if (constrainToBounds && boundsCenter != null)
+			{
+				var c = boundsCenter.position;
+				var p = xrRigRoot.position;
+				p.x = Mathf.Clamp(p.x, c.x - boundsHalfSize.x, c.x + boundsHalfSize.x);
+				p.y = Mathf.Clamp(p.y, c.y - boundsHalfSize.y, c.y + boundsHalfSize.y);
+				p.z = Mathf.Clamp(p.z, c.z - boundsHalfSize.z, c.z + boundsHalfSize.z);
+				xrRigRoot.position = p;
+			}
 		}
 
 		private void TryCacheDevices()
@@ -121,6 +137,16 @@ namespace ImmersiveMapInterface.Interaction
 		{
 			if (dev.isValid && dev.TryGetFeatureValue(usage, out Vector2 v)) return v;
 			return Vector2.zero;
+		}
+
+		private static Vector2 ReadAxisWithFallback(InputDevice dev)
+		{
+			Vector2 v = ReadAxis(dev, CommonUsages.primary2DAxis);
+			if (v.sqrMagnitude <= 0.0001f)
+			{
+				v = ReadAxis(dev, CommonUsages.secondary2DAxis);
+			}
+			return v;
 		}
 	}
 }

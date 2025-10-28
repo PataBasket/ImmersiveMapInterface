@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using ImmersiveMapInterface.Board;
 
@@ -11,16 +12,21 @@ namespace ImmersiveMapInterface.Visualization
         [Header("References")]
         [SerializeField] private PoleBasedBoardState boardState;
         [SerializeField] private GameObject piecePrefab;
+        [Tooltip("If assigned, pieces spawn aligned to this poles parent (mirrors Ground layout). If null, uses local miniature grid.")]
+        [SerializeField] private Transform poleParent;
 
         [Header("Appearance")]
-        [SerializeField] private float poleSpacing = 0.2f; // miniature grid spacing on XZ
+        [SerializeField] private float poleSpacing = 0.2f; // miniature grid spacing on XZ (used if poleParent is null)
         [SerializeField] private float pieceSpacing = 0.15f; // miniature vertical spacing (Y)
-        [SerializeField] private float pieceScale = 0.08f;
+        [SerializeField] private float pieceScale = 0.12f;
+        [SerializeField] private Vector3 pieceRotationEuler = new Vector3(0f,0f,0f);
         [SerializeField] private Material whiteMaterial;
         [SerializeField] private Material blackMaterial;
         [SerializeField] private Material emptyMaterial;
 
         private Renderer[,] pieceRenderers = new Renderer[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
+        private GameObject[,] pieceObjects = new GameObject[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
+        private Dictionary<int, Transform> poleTransforms;
 
         private void Awake()
         {
@@ -48,18 +54,20 @@ namespace ImmersiveMapInterface.Visualization
 
         public void EnsureGenerated()
         {
-            ClearChildren();
+            CachePoleTransforms();
+
+            ClearPieces();
             for (int pole = 0; pole < PoleBasedBoardState.PoleCount; pole++)
             {
                 PoleBasedBoardState.PoleIndexToGrid(pole, out int x, out int z);
-                Vector3 basePos = LocalPoleCenter(x, z);
                 for (int slot = 0; slot < PoleBasedBoardState.PiecesPerPole; slot++)
                 {
-                    var go = Instantiate(piecePrefab, transform);
+                    Quaternion rot;
+                    Vector3 worldPos = GetWorldPositionAndRotation(pole, x, z, slot, out rot);
+                    var go = Instantiate(piecePrefab, worldPos, rot * Quaternion.Euler(pieceRotationEuler), transform);
                     go.name = $"MiniPiece_P{pole}_S{slot}";
                     go.transform.localScale = Vector3.one * pieceScale;
-                    Vector3 pos = basePos + new Vector3(0f, (slot + 0.5f) * pieceSpacing, 0f);
-                    go.transform.localPosition = pos;
+                    pieceObjects[pole, slot] = go;
                     pieceRenderers[pole, slot] = go.GetComponentInChildren<Renderer>();
                 }
             }
@@ -72,12 +80,61 @@ namespace ImmersiveMapInterface.Visualization
             return new Vector3(x * poleSpacing - extent, 0f, z * poleSpacing - extent);
         }
 
-        private void ClearChildren()
+        private void ClearPieces()
         {
-            for (int i = transform.childCount - 1; i >= 0; i--)
+            if (pieceObjects == null) return;
+            for (int pole = 0; pole < PoleBasedBoardState.PoleCount; pole++)
             {
-                DestroyImmediate(transform.GetChild(i).gameObject);
+                for (int slot = 0; slot < PoleBasedBoardState.PiecesPerPole; slot++)
+                {
+                    if (pieceObjects[pole, slot] == null) continue;
+                    if (Application.isPlaying)
+                        Destroy(pieceObjects[pole, slot]);
+                    else
+                        DestroyImmediate(pieceObjects[pole, slot]);
+                    pieceObjects[pole, slot] = null;
+                    pieceRenderers[pole, slot] = null;
+                }
             }
+        }
+
+        private void CachePoleTransforms()
+        {
+            poleTransforms = null;
+            if (poleParent == null) return;
+
+            poleTransforms = new Dictionary<int, Transform>(PoleBasedBoardState.PoleCount);
+            foreach (Transform child in poleParent.GetComponentsInChildren<Transform>(true))
+            {
+                if (!TryParsePoleIndex(child.name, out int poleIndex)) continue;
+                poleTransforms[poleIndex] = child;
+            }
+        }
+
+        private Vector3 GetWorldPositionAndRotation(int poleIndex, int x, int z, int slot, out Quaternion rotation)
+        {
+            if (poleTransforms != null && poleTransforms.TryGetValue(poleIndex, out var t))
+            {
+                rotation = Quaternion.LookRotation(t.forward, t.up);
+                return t.position + t.up * ((slot + 0.5f) * pieceSpacing);
+            }
+            rotation = transform.rotation;
+            Vector3 local = LocalPoleCenter(x, z);
+            Vector3 world = transform.TransformPoint(local);
+            return world + transform.up * ((slot + 0.5f) * pieceSpacing);
+        }
+
+        private static bool TryParsePoleIndex(string name, out int poleIndex)
+        {
+            poleIndex = -1;
+            const string prefix = "pole_";
+            int idx = name.IndexOf(prefix);
+            if (idx >= 0)
+            {
+                string digits = name.Substring(idx + prefix.Length);
+                if (int.TryParse(digits, out poleIndex)) return true;
+            }
+            return false;
         }
 
         private void HandlePieceChanged(int pole, int slot, PoleBasedBoardState.PieceColor color)
@@ -112,4 +169,3 @@ namespace ImmersiveMapInterface.Visualization
         }
     }
 }
-

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: ExperimentConfig
   m_EditorClassIdentifier: 
   subjectId: test
-  condition: 0
+  condition: 2
   pattern: {fileID: 11400000, guid: b2f7d37552c26564da587d3ad86adf06, type: 2}
   gasUrl: 
   apiKey: 

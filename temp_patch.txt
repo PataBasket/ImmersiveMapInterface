@@ -1,0 +1,74 @@
+*** Begin Patch
+*** Update File: Assets/Scripts/Visualization/MiniaturePoleBoardGenerator.cs
+@@
+-        [SerializeField] private Transform poleParent;
++        [SerializeField] private Transform poleParent;
+@@
+-        private Renderer[,] pieceRenderers = new Renderer[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
++        private Renderer[,] pieceRenderers = new Renderer[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
++        private Dictionary<int, Vector3> poleLocalPositions;
+@@
+-            ClearChildren();
+-            for (int pole = 0; pole < PoleBasedBoardState.PoleCount; pole++)
++            CachePoleLocalPositions();
++
++            ClearChildren();
++            for (int pole = 0; pole < PoleBasedBoardState.PoleCount; pole++)
+             {
+                 PoleBasedBoardState.PoleIndexToGrid(pole, out int x, out int z);
+-                Vector3 basePos = poleParent != null ?
+-                    WorldPoleCenter(poleParent, x, z) - transform.position :
+-                    LocalPoleCenter(x, z);
++                Vector3 basePos = GetBasePosition(pole, x, z);
+                 for (int slot = 0; slot < PoleBasedBoardState.PiecesPerPole; slot++)
+                 {
+@@
+-        private Vector3 LocalPoleCenter(int x, int z)
++        private Vector3 LocalPoleCenter(int x, int z)
+         {
+             float extent = (8 - 1) * poleSpacing * 0.5f;
+             return new Vector3(x * poleSpacing - extent, 0f, z * poleSpacing - extent);
+         }
+ 
+@@
+-        private Vector3 WorldPoleCenter(Transform poles, int x, int z)
++        private void CachePoleLocalPositions()
+         {
+-            float extent = (8 - 1) * poleSpacing * 0.5f;
+-            // Map x,z into miniature plane under this generator, using poleSpacing
+-            // The miniature parent (this.transform) is the local origin.
+-            return new Vector3(x * poleSpacing - extent, 0f, z * poleSpacing - extent);
++            poleLocalPositions = null;
++            if (poleParent == null) return;
++
++            poleLocalPositions = new Dictionary<int, Vector3>(PoleBasedBoardState.PoleCount);
++            foreach (Transform child in poleParent)
++            {
++                if (!TryParsePoleIndex(child.name, out int poleIndex)) continue;
++                Vector3 localPos = transform.InverseTransformPoint(child.position);
++                poleLocalPositions[poleIndex] = localPos;
++            }
++        }
++
++        private Vector3 GetBasePosition(int poleIndex, int x, int z)
++        {
++            if (poleLocalPositions != null && poleLocalPositions.TryGetValue(poleIndex, out var pos))
++            {
++                return pos;
++            }
++            return LocalPoleCenter(x, z);
++        }
++
++        private static bool TryParsePoleIndex(string name, out int poleIndex)
++        {
++            poleIndex = -1;
++            const string prefix = "pole_";
++            int idx = name.IndexOf(prefix);
++            if (idx >= 0)
++            {
++                string digits = name.Substring(idx + prefix.Length);
++                if (int.TryParse(digits, out poleIndex)) return true;
++            }
++            return false;
+         }
+*** End Patch

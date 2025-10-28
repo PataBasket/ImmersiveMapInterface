@@ -26,6 +26,21 @@ namespace ImmersiveMapInterface.Board
         [SerializeField] private Color emptyColor = new Color(0.8f, 0.8f, 0.8f, 0.3f);
 		[SerializeField] private Vector3 pieceRotationEuler = new Vector3(0f, 0f, 0f);
         [SerializeField] private bool addColliderIfMissing = true;
+        
+        [Header("Selection Collider")]
+        [Tooltip("If true, will create/resize a SphereCollider for each piece when generated.")]
+        [SerializeField] private bool configureCollider = true;
+        [Tooltip("If true, use a fixed world radius for colliders; otherwise use pieceScale * colliderRadiusFactor (local).")]
+        [SerializeField] private bool useFixedWorldRadius = true;
+        [Tooltip("Sphere collider radius in world meters when using fixed mode.")]
+        [SerializeField] private float colliderWorldRadius = 0.08f;
+        [Tooltip("When not using fixed world radius, local collider radius = pieceScale * factor.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float colliderRadiusFactor = 0.45f;
+        [Tooltip("If true, center collider on the renderer visual center; otherwise use Vector3.zero.")]
+        [SerializeField] private bool centerFromRenderer = true;
+        [Tooltip("Additional local offset added to computed collider center.")]
+        [SerializeField] private Vector3 colliderCenterOffsetLocal = Vector3.zero;
 
         private GameObject[,] pieceObjects = new GameObject[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
 
@@ -84,17 +99,7 @@ namespace ImmersiveMapInterface.Board
                     piece.transform.localScale = Vector3.one * pieceScale;
                     if (addColliderIfMissing)
                     {
-                        var col = piece.GetComponent<Collider>();
-                        if (col == null)
-                        {
-                            var r = piece.GetComponentInChildren<Renderer>();
-                            var sc = piece.AddComponent<SphereCollider>();
-                            if (r != null)
-                            {
-                                float rad = Mathf.Max(r.bounds.extents.x, Mathf.Max(r.bounds.extents.y, r.bounds.extents.z));
-                                sc.radius = Mathf.Max(0.01f, rad);
-                            }
-                        }
+                        EnsureCollider(piece);
                     }
                     
                     pieceObjects[poleIndex, slotIndex] = piece;
@@ -152,11 +157,13 @@ namespace ImmersiveMapInterface.Board
             }
         }
 
-		private void UpdatePieceVisual(GameObject piece, PoleBasedBoardState.PieceColor color)
-		{
-			var renderer = piece.GetComponent<Renderer>();
-			if (renderer == null) return;
+	private void UpdatePieceVisual(GameObject piece, PoleBasedBoardState.PieceColor color)
+	{
+		var renderers = piece.GetComponentsInChildren<Renderer>(true);
+		if (renderers == null || renderers.Length == 0) return;
 
+		foreach (var renderer in renderers)
+		{
 			// Prefer sharedMaterial in Edit mode to avoid instantiation warnings/leaks.
 			switch (color)
 			{
@@ -184,6 +191,73 @@ namespace ImmersiveMapInterface.Board
 					break;
 			}
 		}
+	}
+
+    private void EnsureCollider(GameObject piece)
+    {
+        if (piece == null) return;
+        // Prefer a single SphereCollider on the root
+        var sphere = piece.GetComponent<SphereCollider>();
+        if (sphere == null)
+        {
+            sphere = piece.AddComponent<SphereCollider>();
+            sphere.isTrigger = false;
+        }
+
+        // Disable any other colliders under this piece to avoid oversized hits
+        var allCols = piece.GetComponentsInChildren<Collider>(true);
+        foreach (var c in allCols)
+        {
+            if (c != sphere) c.enabled = false;
+        }
+
+        FitSphereColliderToRenderer(piece, sphere);
+    }
+
+    private void FitSphereColliderToRenderer(GameObject piece, SphereCollider sphere)
+    {
+        // Optionally center collider using the renderer center
+        Vector3 centerLocal = Vector3.zero;
+        if (centerFromRenderer)
+        {
+            var r = piece.GetComponentInChildren<Renderer>();
+            if (r != null)
+            {
+                var lb = r.localBounds;
+                Vector3 centerWorld = r.transform.TransformPoint(lb.center);
+                centerLocal = piece.transform.InverseTransformPoint(centerWorld);
+            }
+        }
+        sphere.center = centerLocal + colliderCenterOffsetLocal;
+
+        // Compute radius in local space
+        float radiusLocal;
+        if (useFixedWorldRadius)
+        {
+            Vector3 ls = piece.transform.lossyScale;
+            float maxScale = Mathf.Max(Mathf.Abs(ls.x), Mathf.Max(Mathf.Abs(ls.y), Mathf.Abs(ls.z)));
+            radiusLocal = colliderWorldRadius / (maxScale > 1e-5f ? maxScale : 1f);
+        }
+        else
+        {
+            radiusLocal = Mathf.Max(0.005f, pieceScale * colliderRadiusFactor);
+        }
+        sphere.radius = radiusLocal;
+    }
+
+    [ContextMenu("Fix Piece Colliders")]
+    private void FixPieceCollidersContextMenu()
+    {
+        for (int pole = 0; pole < PoleBasedBoardState.PoleCount; pole++)
+        {
+            for (int slot = 0; slot < PoleBasedBoardState.PiecesPerPole; slot++)
+            {
+                var piece = pieceObjects[pole, slot];
+                if (piece != null) EnsureCollider(piece);
+            }
+        }
+        Debug.Log("PoleBasedBoardGenerator: Fixed piece colliders.");
+    }
 
         [ContextMenu("Generate Pieces")]
         private void GeneratePiecesContextMenu()

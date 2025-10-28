@@ -26,8 +26,15 @@ namespace ImmersiveMapInterface.Experiment.Selection
         private readonly HashSet<(int pole,int slot)> foundCells = new();
         private readonly HashSet<HashSet<(int pole,int slot)>> foundLines = new();
 
+        // Events for external systems (logger, UI)
+        public System.Action OnWrongAttemptEvent;
+        public System.Action OnCorrectLineFoundEvent;
+
         [Header("Highlight")]
         public ImmersiveMapInterface.Visualization.FoundLinesHighlighter highlighter;
+
+        [Header("Debug")]
+        public bool logDebug = false;
 
         private void Awake()
         {
@@ -42,10 +49,18 @@ namespace ImmersiveMapInterface.Experiment.Selection
         // Call from input: attempt selection at current pointer ray
         public void TrySelectAtPointer()
         {
-            if (pointerOrigin == null) return;
+            if (pointerOrigin == null)
+            {
+                if (logDebug) Debug.Log("Selection: pointer origin not assigned.");
+                return;
+            }
             if (RaycastToPiece(pointerOrigin.position, pointerOrigin.forward, out int pole, out int slot))
             {
                 TrySelect(pole, slot);
+            }
+            else if (logDebug)
+            {
+                Debug.Log("Selection: pointer ray did not hit a piece.");
             }
         }
 
@@ -64,6 +79,7 @@ namespace ImmersiveMapInterface.Experiment.Selection
             // Validate straight length-4
             if (!TryBuildLine(firstSel, second, out var lineSet))
             {
+                if (logDebug) Debug.Log("Selection: endpoints do not form a straight length-4 line.");
                 OnWrongAttempt();
                 hasFirst = false;
                 return;
@@ -74,9 +90,11 @@ namespace ImmersiveMapInterface.Experiment.Selection
             {
                 MarkFound(lineSet);
                 OnCorrectLineFound();
+                if (logDebug) Debug.Log("Selection: target line confirmed.");
             }
             else
             {
+                if (logDebug) Debug.Log("Selection: not a target line (will not highlight red).");
                 OnWrongAttempt();
             }
             hasFirst = false;
@@ -221,11 +239,13 @@ namespace ImmersiveMapInterface.Experiment.Selection
         private void OnWrongAttempt()
         {
             SendMessage("OnWrongAttempt", SendMessageOptions.DontRequireReceiver);
+            OnWrongAttemptEvent?.Invoke();
         }
 
         private void OnCorrectLineFound()
         {
             SendMessage("OnCorrectLineFound", SendMessageOptions.DontRequireReceiver);
+            OnCorrectLineFoundEvent?.Invoke();
         }
     }
 }

@@ -41,12 +41,14 @@ namespace ImmersiveMapInterface.Visualization
             if (redMaterial == null) { Debug.LogWarning("FoundLinesHighlighter: redMaterial not set"); return; }
             foreach (var c in cells)
             {
-                if (map.TryGetValue(c, out var r) && r != null)
+                if (!map.TryGetValue(c, out var r) || r == null)
                 {
-                    r.sharedMaterial = redMaterial;
+                    // Pieces may have been regenerated after Awake. Rebuild map once and retry.
+                    BuildMap();
+                    map.TryGetValue(c, out r);
                 }
+                if (r != null) r.sharedMaterial = redMaterial;
             }
         }
     }
 }
-
