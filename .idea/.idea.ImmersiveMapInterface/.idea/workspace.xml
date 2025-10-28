@@ -4,7 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="aeaf3cc8-46e1-4a95-af8b-43e6ffe4918b" name="Changes" comment="" />
+    <list default="true" id="aeaf3cc8-46e1-4a95-af8b-43e6ffe4918b" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.ImmersiveMapInterface/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.ImmersiveMapInterface/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/Main_Game.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/Main_Game.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Experiment/BoardPopulationService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Experiment/BoardPopulationService.cs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

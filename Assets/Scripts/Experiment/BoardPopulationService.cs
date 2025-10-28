@@ -33,6 +33,12 @@ namespace ImmersiveMapInterface.Experiment
                 return;
             }
 
+            // Ensure lines cache is initialized even when called from editor context menu (Awake may not have run).
+            if (cachedLines == null)
+            {
+                cachedLines = Lines3DUtility.GenerateAllLines();
+            }
+
             int seed = useTimeSeed ? Environment.TickCount : randomSeed;
             var rng = new System.Random(seed);
 
@@ -117,6 +123,10 @@ namespace ImmersiveMapInterface.Experiment
 
         private bool ValidateOnlyTargets(PoleBasedBoardState state, HashSet<(int pole,int slot)> targetCells)
         {
+            if (cachedLines == null)
+            {
+                cachedLines = Lines3DUtility.GenerateAllLines();
+            }
             // Construct a quick lookup to check if a line equals one of the three targets
             var targetLineSets = BuildTargetLineSets(targetCells);
 
