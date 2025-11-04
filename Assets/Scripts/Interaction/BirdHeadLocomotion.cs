@@ -14,6 +14,7 @@ namespace ImmersiveMapInterface.Interaction
 	{
 		[SerializeField] private Transform xrRigRoot; // XR Origin / OVRCameraRig root
 		[SerializeField] private Transform headTransform; // HMD camera transform
+		[SerializeField] private Transform moveTarget;   // Transform to actually move (e.g., OVRCameraRig/TrackingSpace)
 		[SerializeField] private float moveSpeed = 1.5f; // meters per second at full deflection
 		[SerializeField] private float strafeSpeed = 1.5f;
 		[SerializeField] private bool constrainToGroundPlane = false;
@@ -61,6 +62,12 @@ namespace ImmersiveMapInterface.Interaction
 				var cam = Camera.main;
 				if (cam != null) headTransform = cam.transform;
 			}
+			if (moveTarget == null && xrRigRoot != null)
+			{
+				// Prefer OVRCameraRig/TrackingSpace if present, otherwise move the root
+				var tspace = xrRigRoot.Find("TrackingSpace");
+				moveTarget = tspace != null ? tspace : xrRigRoot;
+			}
 		}
 
 		private void Update()
@@ -92,34 +99,34 @@ namespace ImmersiveMapInterface.Interaction
 				delta *= Time.deltaTime;
 
 				if (constrainToGroundPlane) delta.y = 0f;
-				xrRigRoot.position += delta;
+				(moveTarget != null ? moveTarget : xrRigRoot).position += delta;
 			}
 
 			// Optional vertical adjust via right stick Y
 			if (allowVerticalAdjust && Mathf.Abs(look2.y) > 0.0001f)
 			{
-				var p = xrRigRoot.position;
+				var p = (moveTarget != null ? moveTarget : xrRigRoot).position;
 				p.y += look2.y * verticalSpeed * Time.deltaTime;
-				xrRigRoot.position = p;
+				(moveTarget != null ? moveTarget : xrRigRoot).position = p;
 			}
 
 			// Maintain constant height (Bird PoV stays airborne)
 			if (maintainConstantHeight)
 			{
-				var p = xrRigRoot.position;
+				var p = (moveTarget != null ? moveTarget : xrRigRoot).position;
 				p.y = targetHeight;
-				xrRigRoot.position = p;
+				(moveTarget != null ? moveTarget : xrRigRoot).position = p;
 			}
 
 			// Optional bounds constraint
 			if (constrainToBounds && boundsCenter != null)
 			{
 				var c = boundsCenter.position;
-				var p = xrRigRoot.position;
-				p.x = Mathf.Clamp(p.x, c.x - boundsHalfSize.x, c.x + boundsHalfSize.x);
-				p.y = Mathf.Clamp(p.y, c.y - boundsHalfSize.y, c.y + boundsHalfSize.y);
-				p.z = Mathf.Clamp(p.z, c.z - boundsHalfSize.z, c.z + boundsHalfSize.z);
-				xrRigRoot.position = p;
+			var p = (moveTarget != null ? moveTarget : xrRigRoot).position;
+			p.x = Mathf.Clamp(p.x, c.x - boundsHalfSize.x, c.x + boundsHalfSize.x);
+			p.y = Mathf.Clamp(p.y, c.y - boundsHalfSize.y, c.y + boundsHalfSize.y);
+			p.z = Mathf.Clamp(p.z, c.z - boundsHalfSize.z, c.z + boundsHalfSize.z);
+			(moveTarget != null ? moveTarget : xrRigRoot).position = p;
 			}
 		}
 

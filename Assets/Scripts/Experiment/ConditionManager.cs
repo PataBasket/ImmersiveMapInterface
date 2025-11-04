@@ -118,6 +118,19 @@ namespace ImmersiveMapInterface.Experiment
                 if (xrRigRoot != null) SetPrivateTransform(internalLocomotion, "xrRigRoot", xrRigRoot);
                 if (boardRoot != null) SetPrivateTransform(internalLocomotion, "boundsCenter", boardRoot);
                 SetPrivateVector3(internalLocomotion, "boundsHalfSize", new Vector3(4f, 4f, 4f));
+
+                // Prefer moving TrackingSpace (OVRCameraRig) instead of root to avoid floor-snapping by runtime
+                Transform moveTarget = null;
+                if (xrRigRoot != null)
+                {
+                    var tspace = xrRigRoot.Find("TrackingSpace");
+                    if (tspace != null) moveTarget = tspace;
+                }
+                if (moveTarget != null)
+                {
+                    var f = internalLocomotion.GetType().GetField("moveTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (f != null) f.SetValue(internalLocomotion, moveTarget);
+                }
             }
             DisableExternalLocomotion();
         }
