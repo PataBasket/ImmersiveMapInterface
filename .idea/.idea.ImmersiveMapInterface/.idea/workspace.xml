@@ -6,15 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="aeaf3cc8-46e1-4a95-af8b-43e6ffe4918b" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/Main_Game.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/Main_Game.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Experiment/ConditionManager.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Experiment/ConditionManager.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Experiment/ExperimentConfig.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Experiment/ExperimentConfig.asset" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scripts/Experiment/Selection/SelectionSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Experiment/Selection/SelectionSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Interaction/BirdHeadLocomotion.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Interaction/BirdHeadLocomotion.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Interaction/BoardGrabRotate.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Interaction/BoardGrabRotate.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Interaction/VRInputBinder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Interaction/VRInputBinder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Visualization/FoundLinesHighlighter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Visualization/FoundLinesHighlighter.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Visualization/MiniatureFollower.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Visualization/MiniatureFollower.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Visualization/MiniaturePoleBoardGenerator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Visualization/MiniaturePoleBoardGenerator.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/TagManager.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/TagManager.asset" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

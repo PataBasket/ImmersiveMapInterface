@@ -8,6 +8,7 @@ namespace ImmersiveMapInterface.Interaction
     /// <summary>
     /// Maps Quest controller inputs to board/miniature interactions and selection.
     /// </summary>
+    [DisallowMultipleComponent]
     public class VRInputBinder : MonoBehaviour
     {
         [Header("References")]
@@ -37,6 +38,14 @@ namespace ImmersiveMapInterface.Interaction
 
         private void OnEnable()
         {
+            // Guard against duplicate binders
+            var binders = FindObjectsOfType<VRInputBinder>(true);
+            if (binders.Length > 1 && binders[0] != this)
+            {
+                Debug.LogWarning("VRInputBinder: Duplicate binder detected; disabling this instance.");
+                enabled = false;
+                return;
+            }
             TryCacheDevices();
             if (selection == null)
             {

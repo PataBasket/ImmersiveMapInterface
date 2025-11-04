@@ -12,7 +12,14 @@ namespace ImmersiveMapInterface.Experiment.Selection
 
         [Header("Pointer")]
         public Transform pointerOrigin; // controller transform used for raycasts
+        [Tooltip("Base ray length used for selection/hover (meters)")]
         public float maxDistance = 10f;
+        [Tooltip("Multiplier applied to ray length in Bird condition")]
+        public float birdRayMultiplier = 3f;
+        [Tooltip("Multiplier applied to ray length in Internal condition")]
+        public float internalRayMultiplier = 1f;
+        [Tooltip("Multiplier applied to ray length in Internal+Miniature condition")]
+        public float internalMiniRayMultiplier = 1f;
         public LayerMask pickMask = ~0;
 
         [Header("Feedback")]
@@ -36,6 +43,15 @@ namespace ImmersiveMapInterface.Experiment.Selection
         [Header("Debug")]
         public bool logDebug = false;
 
+        [Header("Click Handling")]
+        [Tooltip("Ignore repeated clicks on the same piece within this time window (seconds).")]
+        public float clickDebounceSeconds = 0.15f;
+        private (int pole, int slot) lastClick = (-1, -1);
+        private float lastClickTime = -999f;
+
+        [Header("Hover")]
+        public bool enableHoverHighlight = true;
+
         private void Awake()
         {
             if (boardState == null) boardState = FindObjectOfType<PoleBasedBoardState>();
@@ -44,6 +60,21 @@ namespace ImmersiveMapInterface.Experiment.Selection
         public void ClearSelection()
         {
             hasFirst = false;
+        }
+
+        private void Update()
+        {
+            if (!enableHoverHighlight || pointerOrigin == null || highlighter == null) return;
+            if (RaycastToPiece(pointerOrigin.position, pointerOrigin.forward, out int hpole, out int hslot))
+            {
+                var cell = (hpole, hslot);
+                var color = (hasFirst && AreSame(firstSel, cell)) ? selectColor : hoverColor;
+                highlighter.SetHoverCell(cell, color);
+            }
+            else
+            {
+                highlighter.ClearHover();
+            }
         }
 
         // Call from input: attempt selection at current pointer ray
@@ -56,6 +87,14 @@ namespace ImmersiveMapInterface.Experiment.Selection
             }
             if (RaycastToPiece(pointerOrigin.position, pointerOrigin.forward, out int pole, out int slot))
             {
+                // Debounce: ignore immediate duplicate hits on the same piece
+                if (pole == lastClick.pole && slot == lastClick.slot && (Time.time - lastClickTime) < clickDebounceSeconds)
+                {
+                    if (logDebug) Debug.Log($"Selection: debounced duplicate click P{pole} S{slot}");
+                    return;
+                }
+                lastClick = (pole, slot);
+                lastClickTime = Time.time;
                 TrySelect(pole, slot);
             }
             else if (logDebug)
@@ -70,11 +109,16 @@ namespace ImmersiveMapInterface.Experiment.Selection
             {
                 firstSel = (pole, slot);
                 hasFirst = true;
+                if (logDebug) Debug.Log($"Selection: first endpoint set P{pole} S{slot}");
+                if (highlighter != null)
+                {
+                    highlighter.SetPreviewCell(firstSel, selectColor);
+                }
                 return;
             }
 
             var second = (pole, slot);
-            if (AreSame(firstSel, second)) { hasFirst = false; return; }
+            if (AreSame(firstSel, second)) { if (logDebug) Debug.Log("Selection: second equals first; ignoring."); return; }
 
             // Validate straight length-4
             if (!TryBuildLine(firstSel, second, out var lineSet))
@@ -103,13 +147,38 @@ namespace ImmersiveMapInterface.Experiment.Selection
         private bool RaycastToPiece(Vector3 origin, Vector3 dir, out int pole, out int slot)
         {
             pole = -1; slot = -1;
-            if (Physics.Raycast(origin, dir, out var hit, maxDistance, pickMask, QueryTriggerInteraction.Ignore))
+            float dist = GetEffectiveMaxDistance();
+            if (Physics.Raycast(origin, dir, out var hit, dist, pickMask, QueryTriggerInteraction.Ignore))
             {
-                // expect piece name format contains P<pole>_S<slot>, e.g., Piece_P12_S3 or MiniPiece_P..
+                // Resolve piece root by walking up parents (collider may sit on a child)
                 var go = hit.collider.attachedRigidbody ? hit.collider.attachedRigidbody.gameObject : hit.collider.gameObject;
-                if (TryParsePieceName(go.name, out pole, out slot)) return true;
+                Transform t = go.transform; int hops = 0;
+                while (t != null && hops < 6)
+                {
+                    if (TryParsePieceName(t.name, out pole, out slot)) return true;
+                    t = t.parent; hops++;
+                }
             }
             return false;
+        }
+
+        private float GetEffectiveMaxDistance()
+        {
+            if (config == null)
+            {
+                return maxDistance;
+            }
+            switch (config.condition)
+            {
+                case ExperimentCondition.Bird:
+                    return maxDistance * Mathf.Max(0f, birdRayMultiplier);
+                case ExperimentCondition.Internal:
+                    return maxDistance * Mathf.Max(0f, internalRayMultiplier);
+                case ExperimentCondition.InternalWithMiniature:
+                    return maxDistance * Mathf.Max(0f, internalMiniRayMultiplier);
+                default:
+                    return maxDistance;
+            }
         }
 
         private static bool TryParsePieceName(string name, out int pole, out int slot)
@@ -238,14 +307,16 @@ namespace ImmersiveMapInterface.Experiment.Selection
 
         private void OnWrongAttempt()
         {
-            SendMessage("OnWrongAttempt", SendMessageOptions.DontRequireReceiver);
+            if (highlighter != null) { highlighter.ClearPreview(); highlighter.ClearHover(); }
             OnWrongAttemptEvent?.Invoke();
         }
 
         private void OnCorrectLineFound()
         {
-            SendMessage("OnCorrectLineFound", SendMessageOptions.DontRequireReceiver);
+            if (highlighter != null) { highlighter.ClearPreview(); highlighter.ClearHover(); }
             OnCorrectLineFoundEvent?.Invoke();
         }
     }
 }
+
+

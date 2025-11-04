@@ -13,6 +13,10 @@ namespace ImmersiveMapInterface.Visualization
         private readonly Dictionary<(int pole,int slot), Renderer> map = new();
         private static readonly Regex nameRegex = new Regex(@"(MiniPiece|Piece)_P(\d+)_S(\d+)", RegexOptions.Compiled);
 
+        // Preview highlight via MaterialPropertyBlock (non-destructive)
+        private readonly List<Renderer> previewRenderers = new List<Renderer>();
+        private Renderer hoverRenderer;
+
         private void Awake()
         {
             BuildMap();
@@ -48,6 +52,70 @@ namespace ImmersiveMapInterface.Visualization
                     map.TryGetValue(c, out r);
                 }
                 if (r != null) r.sharedMaterial = redMaterial;
+            }
+        }
+
+        public void SetPreviewCell((int pole,int slot) cell, Color color)
+        {
+            if (!map.TryGetValue(cell, out var r) || r == null)
+            {
+                BuildMap();
+                map.TryGetValue(cell, out r);
+            }
+            if (r == null) return;
+            var block = new MaterialPropertyBlock();
+            r.GetPropertyBlock(block);
+            block.SetColor("_BaseColor", color);
+            block.SetColor("_Color", color);
+            r.SetPropertyBlock(block);
+            if (!previewRenderers.Contains(r)) previewRenderers.Add(r);
+        }
+
+        public void ClearPreview()
+        {
+            foreach (var r in previewRenderers)
+            {
+                if (r != null)
+                {
+                    r.SetPropertyBlock(null);
+                }
+            }
+            previewRenderers.Clear();
+        }
+
+        // Hover highlight (single cell). Uses a separate slot from preview.
+        public void SetHoverCell((int pole,int slot) cell, Color color)
+        {
+            if (!map.TryGetValue(cell, out var r) || r == null)
+            {
+                BuildMap();
+                map.TryGetValue(cell, out r);
+            }
+            if (hoverRenderer == r) return;
+            // clear previous hover if it wasn't also a preview target
+            if (hoverRenderer != null && !previewRenderers.Contains(hoverRenderer))
+            {
+                hoverRenderer.SetPropertyBlock(null);
+            }
+            hoverRenderer = r;
+            if (hoverRenderer == null) return;
+            var block = new MaterialPropertyBlock();
+            hoverRenderer.GetPropertyBlock(block);
+            block.SetColor("_BaseColor", color);
+            block.SetColor("_Color", color);
+            hoverRenderer.SetPropertyBlock(block);
+        }
+
+        public void ClearHover()
+        {
+            if (hoverRenderer != null)
+            {
+                // Do not clear if the hover renderer is also in the preview set
+                if (!previewRenderers.Contains(hoverRenderer))
+                {
+                    hoverRenderer.SetPropertyBlock(null);
+                }
+                hoverRenderer = null;
             }
         }
     }
