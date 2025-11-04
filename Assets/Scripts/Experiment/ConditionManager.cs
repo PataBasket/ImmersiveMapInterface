@@ -27,6 +27,14 @@ namespace ImmersiveMapInterface.Experiment
         public Transform birdAnchor;       // top-down view anchor
         public Transform internalStartAnchor; // internal view start anchor
 
+        [Header("Bounds Override (Internal)")]
+        [Tooltip("If enabled, ConditionManager will set BirdHeadLocomotion bounds on ApplyCondition.")]
+        public bool overrideBounds = false;
+        [Tooltip("Center used for Internal bounds when override is enabled. If null, boardRoot is used.")]
+        public Transform boundsCenterOverride;
+        [Tooltip("Half-size used for Internal bounds when override is enabled.")]
+        public Vector3 boundsHalfSizeOverride = new Vector3(4f, 4f, 4f);
+
         private void Reset()
         {
             xrRigRoot = GameObject.Find("XR Origin")?.transform ?? GameObject.Find("OVRCameraRig")?.transform;
@@ -116,9 +124,13 @@ namespace ImmersiveMapInterface.Experiment
                 SetPrivateBool(internalLocomotion, "constrainToBounds", true);
                 if (headTransform != null) SetPrivateTransform(internalLocomotion, "headTransform", headTransform);
                 if (xrRigRoot != null) SetPrivateTransform(internalLocomotion, "xrRigRoot", xrRigRoot);
-                if (boardRoot != null) SetPrivateTransform(internalLocomotion, "boundsCenter", boardRoot);
-                SetPrivateVector3(internalLocomotion, "boundsHalfSize", new Vector3(4f, 4f, 4f));
-
+                if (overrideBounds)
+                {
+                    var center = boundsCenterOverride != null ? boundsCenterOverride : boardRoot;
+                    if (center != null) SetPrivateTransform(internalLocomotion, "boundsCenter", center);
+                    SetPrivateVector3(internalLocomotion, "boundsHalfSize", boundsHalfSizeOverride);
+                }
+                
                 // Prefer moving TrackingSpace (OVRCameraRig) instead of root to avoid floor-snapping by runtime
                 Transform moveTarget = null;
                 if (xrRigRoot != null)
