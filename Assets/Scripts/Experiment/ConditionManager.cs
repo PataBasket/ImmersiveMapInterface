@@ -103,7 +103,7 @@ namespace ImmersiveMapInterface.Experiment
                         miniatureFollower.boardRoot = boardRoot;
                     }
                     miniatureFollower.enabled = miniActive;
-                    miniatureFollower.followYaw = config.condition != ExperimentCondition.InternalWithMiniature;
+                    miniatureFollower.followYaw = true;
                 }
                 if (miniatureGrabRotate != null)
                 {
