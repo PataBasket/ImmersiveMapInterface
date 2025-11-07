@@ -31,16 +31,20 @@ namespace ImmersiveMapInterface.Board
         [Tooltip("If true, will create/resize a SphereCollider for each piece when generated.")]
         [SerializeField] private bool configureCollider = true;
         [Tooltip("If true, use a fixed world radius for colliders; otherwise use pieceScale * colliderRadiusFactor (local).")]
-        [SerializeField] private bool useFixedWorldRadius = true;
-        [Tooltip("Sphere collider radius in world meters when using fixed mode.")]
-        [SerializeField] private float colliderWorldRadius = 0.08f;
+		[SerializeField] private bool useFixedWorldRadius = true;
+		[Tooltip("Sphere collider radius in world meters when using fixed mode.")]
+		[SerializeField] private float colliderWorldRadius = 0.08f;
         [Tooltip("When not using fixed world radius, local collider radius = pieceScale * factor.")]
         [Range(0f, 1f)]
         [SerializeField] private float colliderRadiusFactor = 0.45f;
         [Tooltip("If true, center collider on the renderer visual center; otherwise use Vector3.zero.")]
         [SerializeField] private bool centerFromRenderer = true;
-        [Tooltip("Additional local offset added to computed collider center.")]
-        [SerializeField] private Vector3 colliderCenterOffsetLocal = Vector3.zero;
+		[Tooltip("Additional local offset added to computed collider center.")]
+		[SerializeField] private Vector3 colliderCenterOffsetLocal = Vector3.zero;
+
+        public float PoleSpacing => poleSpacing;
+        public float PieceSpacing => pieceSpacing;
+        public float PieceScale => pieceScale;
 
         private GameObject[,] pieceObjects = new GameObject[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
 

@@ -5388,7 +5388,7 @@ MonoBehaviour:
   verticalSpeed: 1
   constrainToBounds: 1
   boundsCenter: {fileID: 1660730928}
-  boundsHalfSize: {x: 5, y: 4.5, z: 5}
+  boundsHalfSize: {x: 5, y: 5, z: 5}
 --- !u!1 &149819173
 GameObject:
   m_ObjectHideFlags: 0
@@ -67861,10 +67861,20 @@ MonoBehaviour:
   poleLayoutRoot: {fileID: 619808664}
   usePoleLayout: 1
   inheritPoleOrientation: 1
-  stackVerticalOffset: -0.1
+  stackVerticalOffset: -0.15
+  useWorldScale: 0
+  worldBoardRoot: {fileID: 756720195}
+  worldPivot: {fileID: 2071894422}
+  worldPivotLocalOffset: {x: 0, y: 0, z: 0}
+  miniatureScale: 0.025
+  autoScaleSlotSpacing: 1
+  worldSlotSpacing: 0.05
+  scalePieceSizeWithMiniature: 1
+  syncFromReferenceBoard: 1
+  referenceBoard: {fileID: 1219849195}
   poleSpacing: 0.2
   pieceSpacing: 0.03
-  pieceScale: 2
+  pieceScale: 1.8
   pieceRotationEuler: {x: 90, y: 0, z: 0}
   whiteMaterial: {fileID: 2100000, guid: 32a22e1367685a5479cd287eaf74ec07, type: 2}
   blackMaterial: {fileID: 2100000, guid: 9a7a4d125a449ed4cb99a8a77375f76a, type: 2}
@@ -67872,6 +67882,7 @@ MonoBehaviour:
   fallbackWhiteColor: {r: 1, g: 1, b: 1, a: 0}
   fallbackBlackColor: {r: 0, g: 0, b: 0, a: 0}
   fallbackEmptyColor: {r: 0, g: 0, b: 0, a: 0}
+  compensatePrefabScale: 0
 --- !u!1 &2109240761
 GameObject:
   m_ObjectHideFlags: 0
