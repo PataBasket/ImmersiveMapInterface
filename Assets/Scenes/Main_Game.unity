@@ -19018,7 +19018,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.4, y: 0.005, z: 0.4}
+  m_LocalScale: {x: 0.32, y: 0.004, z: 0.32}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 834911138}
@@ -21249,7 +21249,7 @@ PrefabInstance:
     - target: {fileID: 1170242301986888116, guid: 70d02a90551f23042a882cdceeaf8e3a, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 45e6f7edeea9a40498f0c967d5aea4cb, type: 2}
+      objectReference: {fileID: 2100000, guid: aa70c70787230f248b33d8a0ce1a6c3d, type: 2}
     - target: {fileID: 6536860776232889746, guid: 70d02a90551f23042a882cdceeaf8e3a, type: 3}
       propertyPath: m_Name
       value: OVRLeftHandVisual
@@ -21305,7 +21305,7 @@ PrefabInstance:
     - target: {fileID: 6536860776972643632, guid: 70d02a90551f23042a882cdceeaf8e3a, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 45e6f7edeea9a40498f0c967d5aea4cb, type: 2}
+      objectReference: {fileID: 2100000, guid: aa70c70787230f248b33d8a0ce1a6c3d, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -31971,7 +31971,7 @@ PrefabInstance:
     - target: {fileID: 475771845564513521, guid: 34a22dd67c1e5344591237fdd61e78ec, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 45e6f7edeea9a40498f0c967d5aea4cb, type: 2}
+      objectReference: {fileID: 2100000, guid: aa70c70787230f248b33d8a0ce1a6c3d, type: 2}
     - target: {fileID: 1678554349857304352, guid: 34a22dd67c1e5344591237fdd61e78ec, type: 3}
       propertyPath: m_Name
       value: OVRRightHandVisual
@@ -32031,7 +32031,7 @@ PrefabInstance:
     - target: {fileID: 1678554350674794614, guid: 34a22dd67c1e5344591237fdd61e78ec, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 45e6f7edeea9a40498f0c967d5aea4cb, type: 2}
+      objectReference: {fileID: 2100000, guid: aa70c70787230f248b33d8a0ce1a6c3d, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -55340,7 +55340,7 @@ MonoBehaviour:
   miniatureRoot: {fileID: 1722625093}
   boardRoot: {fileID: 2071894422}
   forwardDistance: 0.5
-  heightOffset: -0.6
+  heightOffset: -0.5
   lateralOffset: 0
   followYaw: 1
   mirrorBoardYaw: 0
@@ -67431,12 +67431,12 @@ MonoBehaviour:
   poleLayoutRoot: {fileID: 619808664}
   usePoleLayout: 1
   inheritPoleOrientation: 1
-  stackVerticalOffset: -0.15
+  stackVerticalOffset: -0.12
   useWorldScale: 0
   worldBoardRoot: {fileID: 756720195}
   worldPivot: {fileID: 2071894422}
   worldPivotLocalOffset: {x: 0, y: 0, z: 0}
-  miniatureScale: 0.025
+  miniatureScale: 0.02
   autoScaleSlotSpacing: 1
   worldSlotSpacing: 0.05
   scalePieceSizeWithMiniature: 1
