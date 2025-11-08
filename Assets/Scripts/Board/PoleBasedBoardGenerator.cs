@@ -39,8 +39,12 @@ namespace ImmersiveMapInterface.Board
         [SerializeField] private float colliderRadiusFactor = 0.45f;
         [Tooltip("If true, center collider on the renderer visual center; otherwise use Vector3.zero.")]
         [SerializeField] private bool centerFromRenderer = true;
-		[Tooltip("Additional local offset added to computed collider center.")]
-		[SerializeField] private Vector3 colliderCenterOffsetLocal = Vector3.zero;
+        [Tooltip("Additional local offset added to computed collider center.")]
+        [SerializeField] private Vector3 colliderCenterOffsetLocal = Vector3.zero;
+
+        [Header("Layering")]
+        [Tooltip("If true, generated pieces inherit the layer from PiecesRoot (or this object when PiecesRoot is null).")]
+        [SerializeField] private bool inheritLayerFromParent = true;
 
         public float PoleSpacing => poleSpacing;
         public float PieceSpacing => pieceSpacing;
@@ -101,6 +105,7 @@ namespace ImmersiveMapInterface.Board
                     GameObject piece = Instantiate(piecePrefab, worldPos, worldRot, parentForPiece);
                     piece.name = $"Piece_P{poleIndex}_S{slotIndex}";
                     piece.transform.localScale = Vector3.one * pieceScale;
+                    ApplyPieceLayer(piece);
                     if (addColliderIfMissing)
                     {
                         EnsureCollider(piece);
@@ -158,6 +163,26 @@ namespace ImmersiveMapInterface.Board
                     
                     UpdatePieceVisual(piece, color);
                 }
+            }
+        }
+
+        private void ApplyPieceLayer(GameObject piece)
+        {
+            if (!inheritLayerFromParent || piece == null) return;
+            int targetLayer = gameObject.layer;
+            if (piecesRoot != null) targetLayer = piecesRoot.gameObject.layer;
+            else if (poleParent != null) targetLayer = poleParent.gameObject.layer;
+            if (targetLayer < 0 || targetLayer > 31) return;
+            SetLayerRecursively(piece.transform, targetLayer);
+        }
+
+        private static void SetLayerRecursively(Transform root, int layer)
+        {
+            if (root == null) return;
+            root.gameObject.layer = layer;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                SetLayerRecursively(root.GetChild(i), layer);
             }
         }
 

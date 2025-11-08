@@ -13,6 +13,7 @@ namespace ImmersiveMapInterface.Experiment
 
         [Header("Options")]
         [SerializeField] private bool logDetails = false;
+        [SerializeField] private bool autoGenerateOnPlay = true;
 
         private List<(int p1, int s1, int p2, int s2, int p3, int s3, int p4, int s4)> cachedLines;
 
@@ -20,6 +21,12 @@ namespace ImmersiveMapInterface.Experiment
         {
             if (boardState == null) boardState = GetComponent<PoleBasedBoardState>();
             EnsureLinesCache();
+        }
+
+        private void Start()
+        {
+            if (!Application.isPlaying || !autoGenerateOnPlay) return;
+            GenerateFromPattern();
         }
 
         private void EnsureLinesCache()

@@ -57,6 +57,8 @@ namespace ImmersiveMapInterface.Visualization
         [Header("Prefab Handling")]
         [Tooltip("If true, automatically counteracts the prefab's existing transform scale so that pieceScale represents the final size.")]
         [SerializeField] private bool compensatePrefabScale = false;
+        [Tooltip("If true, generated miniature pieces inherit this object's layer.")]
+        [SerializeField] private bool inheritLayerFromRoot = true;
 
         private Renderer[,] pieceRenderers = new Renderer[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
         private GameObject[,] pieceObjects = new GameObject[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
@@ -129,6 +131,10 @@ namespace ImmersiveMapInterface.Visualization
                     var go = Instantiate(piecePrefab, transform);
                     go.name = $"MiniPiece_P{pole}_S{slot}";
                     go.transform.localScale = ApplyScaleCompensation(Vector3.one * pieceScaleUsed);
+                    if (inheritLayerFromRoot)
+                    {
+                        SetLayerRecursively(go.transform, gameObject.layer);
+                    }
                     Vector3 localBase = LocalPoleCenter(x, z);
                     if (layoutLocalPositions != null && layoutLocalPositions.TryGetValue(pole, out var layoutPos))
                     {
@@ -402,6 +408,16 @@ namespace ImmersiveMapInterface.Visualization
                 if (int.TryParse(digits, out poleIndex)) return true;
             }
             return false;
+        }
+
+        private static void SetLayerRecursively(Transform root, int layer)
+        {
+            if (root == null || layer < 0 || layer > 31) return;
+            root.gameObject.layer = layer;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                SetLayerRecursively(root.GetChild(i), layer);
+            }
         }
     }
 }
