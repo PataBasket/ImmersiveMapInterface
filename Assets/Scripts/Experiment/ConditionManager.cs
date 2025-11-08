@@ -87,6 +87,10 @@ namespace ImmersiveMapInterface.Experiment
             {
                 birdGrabRotate.boardRoot = boardRoot;
             }
+            if (miniatureGrabRotate != null && miniatureGrabRotate.boardRoot == null && miniatureRoot != null)
+            {
+                miniatureGrabRotate.boardRoot = miniatureRoot.transform;
+            }
 
             // Miniature controls: when miniature is active, prefer grab interaction over head-follow
             if (miniatureRoot != null)
