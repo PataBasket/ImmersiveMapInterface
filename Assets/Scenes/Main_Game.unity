@@ -35138,7 +35138,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   selection: {fileID: 1649524460}
-  grabRotate: {fileID: 1302507461}
+  grabRotate: {fileID: 2071894423}
   additionalGrabRotates: []
   leftHandTransform: {fileID: 0}
   rightHandTransform: {fileID: 1195345296}
@@ -43689,7 +43689,6 @@ GameObject:
   - component: {fileID: 1302507464}
   - component: {fileID: 1302507463}
   - component: {fileID: 1302507462}
-  - component: {fileID: 1302507461}
   - component: {fileID: 1302507465}
   m_Layer: 0
   m_Name: ExperimentSystem
@@ -43698,59 +43697,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1302507461
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1302507460}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e79373806ec897645969f73233816ca8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  boardRoot: {fileID: 2071894422}
-  reference: {fileID: 0}
-  grabVisual: {fileID: 0}
-  yawSensitivity: 1
-  invertYaw: 1
-  yawOnly: 1
-  useControllerYaw: 1
-  grabAnchors:
-  - point: {fileID: 1845725829}
-    allowYaw: 0
-    allowPitch: 1
-  - point: {fileID: 809309064}
-    allowYaw: 0
-    allowPitch: 1
-  - point: {fileID: 1018515006}
-    allowYaw: 0
-    allowPitch: 1
-  - point: {fileID: 330798371}
-    allowYaw: 0
-    allowPitch: 1
-  - point: {fileID: 352004792}
-    allowYaw: 1
-    allowPitch: 0
-  - point: {fileID: 1242834327}
-    allowYaw: 1
-    allowPitch: 0
-  - point: {fileID: 537730778}
-    allowYaw: 1
-    allowPitch: 0
-  - point: {fileID: 545885098}
-    allowYaw: 1
-    allowPitch: 0
-  requireAnchor: 1
-  anchorSnapDistance: 0.25
-  anchorSnapDistanceRay: 10
-  alignGrabToAnchor: 1
-  visualizeAnchors: 1
-  anchorGizmoColor: {r: 0.5, g: 0.8, b: 1, a: 0.6}
-  allowPitch: 1
-  pitchSensitivity: 1
-  invertPitch: 0
 --- !u!114 &1302507462
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -43782,7 +43728,7 @@ MonoBehaviour:
   groundRoot: {fileID: 756720195}
   boardRoot: {fileID: 2071894422}
   internalLocomotion: {fileID: 148831591}
-  birdGrabRotate: {fileID: 1302507461}
+  birdGrabRotate: {fileID: 2071894423}
   miniatureRoot: {fileID: 1722625091}
   miniatureGrabRotate: {fileID: 0}
   miniatureFollower: {fileID: 1722625092}
@@ -43819,7 +43765,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   selection: {fileID: 1649524460}
-  grabRotate: {fileID: 1302507461}
+  grabRotate: {fileID: 2071894423}
   additionalGrabRotates: []
   leftHandTransform: {fileID: 0}
   rightHandTransform: {fileID: 1195345296}
@@ -66105,6 +66051,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2071894422}
+  - component: {fileID: 2071894423}
   m_Layer: 0
   m_Name: BoardRoot
   m_TagString: Untagged
@@ -66133,6 +66080,61 @@ Transform:
   - {fileID: 1370613151}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2071894423
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2071894421}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e79373806ec897645969f73233816ca8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  boardRoot: {fileID: 2071894422}
+  reference: {fileID: 0}
+  grabVisualPrefab: {fileID: 585578976035682324, guid: 4814233ef933a444cb4bbc62e559f8ff, type: 3}
+  yawSensitivity: 1
+  invertYaw: 1
+  useControllerYaw: 1
+  allowPitch: 1
+  pitchSensitivity: 1
+  invertPitch: 0
+  pitchAngleMultiplier: 1
+  pitchAngleLimit: 90
+  grabAnchors:
+  - point: {fileID: 1845725829}
+    allowYaw: 0
+    allowPitch: 1
+  - point: {fileID: 809309064}
+    allowYaw: 0
+    allowPitch: 1
+  - point: {fileID: 1018515006}
+    allowYaw: 0
+    allowPitch: 1
+  - point: {fileID: 330798371}
+    allowYaw: 0
+    allowPitch: 1
+  - point: {fileID: 352004792}
+    allowYaw: 1
+    allowPitch: 0
+  - point: {fileID: 1242834327}
+    allowYaw: 1
+    allowPitch: 0
+  - point: {fileID: 537730778}
+    allowYaw: 1
+    allowPitch: 0
+  - point: {fileID: 545885098}
+    allowYaw: 1
+    allowPitch: 0
+  requireAnchor: 1
+  anchorSnapDistance: 0.25
+  anchorSnapDistanceRay: 10
+  alignGrabToAnchor: 1
+  visualizeAnchors: 1
+  anchorGizmoColor: {r: 0.5, g: 0.8, b: 1, a: 0.6}
+  logAnchorVisuals: 0
 --- !u!1 &2079082016
 GameObject:
   m_ObjectHideFlags: 0

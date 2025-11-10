@@ -1,22 +1,33 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ImmersiveMapInterface.Interaction
 {
-    // One-hand grab-to-rotate (yaw-focused). Input hookup is left to the integrator
-    // via calling BeginGrab/UpdateGrab/EndGrab from controller events.
+    /// <summary>
+    /// Handles grabbing/rotating the board or miniature via explicit anchors.
+    /// Corner anchors allow yaw, edge anchors allow pitch.
+    /// </summary>
     public class BoardGrabRotate : MonoBehaviour
     {
         [Header("Target")]
-        public Transform boardRoot; // e.g., Ground
-        public Transform reference; // controller hand transform used during grab
-        [Tooltip("Optional ray hit visual (set active when grabbing).")]
-        public GameObject grabVisual;
+        public Transform boardRoot;
+        public Transform reference; // controller transform supplied by VRInputBinder
+        [Tooltip("Prefab spawned per anchor to visualize hover/grab state.")]
+        public GameObject grabVisualPrefab;
 
-        [Header("Tuning")]
-        public float yawSensitivity = 2.0f; // multiplier on computed yaw delta (degrees)
+        [Header("Yaw")]
+        public float yawSensitivity = 2.0f;
         public bool invertYaw = true;
-        public bool yawOnly = true;
-        public bool useControllerYaw = true; // if true, derive rotation from hand/controller yaw instead of position arc
+        public bool useControllerYaw = true;
+
+        [Header("Pitch")]
+        public bool allowPitch = true;
+        public float pitchSensitivity = 1.0f;
+        public bool invertPitch = false;
+        [Tooltip("Extra multiplier applied to pitch delta (use <1 for finer control).")]
+        public float pitchAngleMultiplier = 1.0f;
+        [Tooltip("Clamp pitch angle to this absolute value (degrees).")]
+        public float pitchAngleLimit = 90f;
 
         [System.Serializable]
         public class GrabAnchor
@@ -27,90 +38,100 @@ namespace ImmersiveMapInterface.Interaction
         }
 
         [Header("Anchors")]
-        [Tooltip("Optional grab anchors (corners/edges). When set, the hand must be within snap distance to grab.")]
         public GrabAnchor[] grabAnchors;
-        [Tooltip("Require the hand to be close to an anchor before grabbing.")]
         public bool requireAnchor = false;
-        [Tooltip("Meters from an anchor within which a grab is allowed.")]
         public float anchorSnapDistance = 0.25f;
-        [Tooltip("Meters from an anchor within which a ray-based grab is allowed.")]
         public float anchorSnapDistanceRay = 0.35f;
-        [Tooltip("Use the anchor position as the pivot for direction calculations when available.")]
         public bool alignGrabToAnchor = true;
-        [Tooltip("Draw gizmos for grab anchors when selected.")]
         public bool visualizeAnchors = true;
         public Color anchorGizmoColor = new Color(0.5f, 0.8f, 1f, 0.6f);
 
-        [Header("Pitch (optional)")]
-        public bool allowPitch = false;            // allow vertical rotation like tilting the board up/down
-        public float pitchSensitivity = 1.0f;      // multiplier on computed pitch delta (degrees)
-        public bool invertPitch = false;
+        [Header("Debug")]
+        public bool logAnchorVisuals = false;
 
-        private bool grabbing = false;
+        private bool grabbing;
         private Vector3 grabStartDir;
         private Quaternion boardStartRot;
         private float startYawDeg;
         private float startPitchDeg;
         private Transform currentAnchor;
+        private GrabAnchor currentAnchorData;
         private Vector3 grabPivot;
         private Vector3 grabHitPoint;
         private bool useRayHit;
-        private GrabAnchor currentAnchorData;
+        private float currentPitchAmount;
+        private readonly List<GameObject> anchorVisuals = new List<GameObject>();
 
         public bool IsGrabbing => grabbing;
-        public Transform CurrentAnchor => currentAnchor;
 
-        public void BeginGrab(Transform hand, Vector3? rayHitPoint = null)
+        public void BeginGrab(Transform hand, Vector3? rayHitPoint)
         {
             if (boardRoot == null || hand == null) return;
             Vector3 referencePoint = rayHitPoint ?? hand.position;
             if (!EvaluateAnchor(referencePoint, true, out _, rayHitPoint.HasValue)) return;
+
             reference = hand;
             grabbing = true;
             useRayHit = rayHitPoint.HasValue;
-            grabHitPoint = rayHitPoint ?? hand.position;
+            grabHitPoint = referencePoint;
+            currentPitchAmount = 0f;
+
             Vector3 pivot = GetCurrentPivot();
             grabStartDir = ProjectOnPlane(grabHitPoint - pivot, Vector3.up).normalized;
             boardStartRot = boardRoot.rotation;
             startYawDeg = YawFromForward(ProjectOnPlane(hand.forward, Vector3.up).normalized);
             startPitchDeg = PitchFromForward(hand.forward);
-            UpdateGrabVisual(true);
+
+            UpdateAnchorVisuals();
         }
 
         public void UpdateGrab()
         {
             if (!grabbing || boardRoot == null || reference == null) return;
-            float angle;
+
+            float yawAngle = 0f;
             if (useControllerYaw)
             {
                 float currentYaw = YawFromForward(ProjectOnPlane(reference.forward, Vector3.up).normalized);
-                angle = Mathf.DeltaAngle(startYawDeg, currentYaw) * yawSensitivity * (invertYaw ? -1f : 1f);
+                yawAngle = Mathf.DeltaAngle(startYawDeg, currentYaw) * yawSensitivity * (invertYaw ? -1f : 1f);
             }
             else
             {
-            Vector3 pivot = GetCurrentPivot();
-            Vector3 referencePoint = useRayHit ? grabHitPoint : reference.position;
+                Vector3 pivot = GetCurrentPivot();
+                Vector3 referencePoint = useRayHit ? grabHitPoint : reference.position;
                 var currentDir = ProjectOnPlane(referencePoint - pivot, Vector3.up).normalized;
                 if (currentDir.sqrMagnitude < 1e-6f || grabStartDir.sqrMagnitude < 1e-6f) return;
-            bool yawEnabled = currentAnchorData == null ? true : currentAnchorData.allowYaw;
-            if (!yawEnabled)
-            {
-                angle = 0f;
+                if (currentAnchorData == null || currentAnchorData.allowYaw)
+                {
+                    yawAngle = Vector3.SignedAngle(grabStartDir, currentDir, Vector3.up) *
+                               yawSensitivity * (invertYaw ? -1f : 1f);
+                }
+                else
+                {
+                    yawAngle = 0f;
+                }
             }
-            else
-            {
-                angle = Vector3.SignedAngle(grabStartDir, currentDir, Vector3.up) * yawSensitivity * (invertYaw ? -1f : 1f);
-            }
-            }
-            var delta = Quaternion.AngleAxis(angle, Vector3.up);
 
-        bool pitchAllowed = allowPitch && (currentAnchorData == null || currentAnchorData.allowPitch);
-            if (pitchAllowed)
+            Quaternion delta = Quaternion.AngleAxis(yawAngle, Vector3.up);
+
+            if (allowPitch && currentAnchorData != null && currentAnchorData.allowPitch)
             {
                 float currentPitch = PitchFromForward(reference.forward);
-                float pitchDelta = Mathf.DeltaAngle(startPitchDeg, currentPitch) * pitchSensitivity * (invertPitch ? -1f : 1f);
-                var pitchQ = Quaternion.AngleAxis(pitchDelta, Vector3.right);
-                delta = delta * pitchQ;
+                float targetPitch = Mathf.Clamp(
+                    Mathf.DeltaAngle(startPitchDeg, currentPitch) * pitchSensitivity * pitchAngleMultiplier *
+                    (invertPitch ? -1f : 1f),
+                    -pitchAngleLimit,
+                    pitchAngleLimit);
+
+                float deltaPitch = targetPitch - currentPitchAmount;
+                currentPitchAmount = targetPitch;
+
+                if (Mathf.Abs(deltaPitch) > 0.01f)
+                {
+                    Vector3 axis = GetPitchAxis();
+                    var pitchQ = Quaternion.AngleAxis(deltaPitch, axis);
+                    delta = pitchQ * delta;
+                }
             }
 
             boardRoot.rotation = delta * boardStartRot;
@@ -121,13 +142,13 @@ namespace ImmersiveMapInterface.Interaction
             grabbing = false;
             reference = null;
             currentAnchor = null;
-            grabPivot = boardRoot != null ? boardRoot.position : transform.position;
-            useRayHit = false;
-            UpdateGrabVisual(false);
             currentAnchorData = null;
+            grabPivot = boardRoot != null ? boardRoot.position : transform.position;
+            currentPitchAmount = 0f;
+            HideAllAnchorVisuals();
         }
 
-        public bool CanGrabAt(Vector3 position, out float score, bool isRay = false)
+        public bool CanGrabAt(Vector3 position, out float score, bool isRay)
         {
             return EvaluateAnchor(position, false, out score, isRay);
         }
@@ -144,7 +165,7 @@ namespace ImmersiveMapInterface.Interaction
             {
                 foreach (var anchor in grabAnchors)
                 {
-                    if (anchor == null || anchor.point == null) continue;
+                    if (anchor?.point == null) continue;
                     float dist = Vector3.Distance(position, anchor.point.position);
                     if (dist < bestDist)
                     {
@@ -160,6 +181,7 @@ namespace ImmersiveMapInterface.Interaction
                         currentAnchor = bestAnchor.point;
                         currentAnchorData = bestAnchor;
                         grabPivot = alignGrabToAnchor ? bestAnchor.point.position : GetBoardRootPosition();
+                        UpdateAnchorVisuals();
                     }
                     score = bestDist;
                     return true;
@@ -171,15 +193,62 @@ namespace ImmersiveMapInterface.Interaction
                 }
             }
 
-            // No anchor requirement or none within range
             score = Vector3.Distance(position, GetBoardRootPosition());
             if (commit)
             {
                 currentAnchor = null;
                 currentAnchorData = null;
                 grabPivot = GetBoardRootPosition();
+                HideAllAnchorVisuals();
             }
             return true;
+        }
+
+        public void UpdateHover(Vector3 position, bool isRay)
+        {
+            if (grabAnchors == null || grabAnchors.Length == 0 || grabVisualPrefab == null) return;
+            if (grabbing)
+            {
+                UpdateAnchorVisuals();
+                return;
+            }
+
+            float snapDistance = isRay ? anchorSnapDistanceRay : anchorSnapDistance;
+            int bestIndex = -1;
+            float bestDist = float.MaxValue;
+            for (int i = 0; i < grabAnchors.Length; i++)
+            {
+                var anchor = grabAnchors[i];
+                if (anchor?.point == null) continue;
+                float dist = Vector3.Distance(position, anchor.point.position);
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestIndex = i;
+                }
+            }
+
+            bool within = bestIndex >= 0 && bestDist <= snapDistance;
+            HideAllAnchorVisuals();
+            if (within)
+            {
+                var anchor = grabAnchors[bestIndex];
+                SetAnchorVisualActive(bestIndex, true, anchor.point.position);
+            }
+        }
+
+        public void ClearHoverVisuals()
+        {
+            if (!grabbing)
+            {
+                HideAllAnchorVisuals();
+            }
+        }
+
+        public void UpdateRayHit(Vector3 hitPoint)
+        {
+            if (!grabbing) return;
+            grabHitPoint = hitPoint;
         }
 
         private Vector3 GetCurrentPivot()
@@ -188,8 +257,7 @@ namespace ImmersiveMapInterface.Interaction
             {
                 return currentAnchor.position;
             }
-            if (grabPivot != Vector3.zero) return grabPivot;
-            return GetBoardRootPosition();
+            return grabPivot != Vector3.zero ? grabPivot : GetBoardRootPosition();
         }
 
         private Vector3 GetBoardRootPosition()
@@ -197,18 +265,22 @@ namespace ImmersiveMapInterface.Interaction
             return boardRoot != null ? boardRoot.position : transform.position;
         }
 
+        private Vector3 GetPitchAxis()
+        {
+            if (boardRoot == null) return Vector3.right;
+            if (currentAnchorData == null || currentAnchor == null) return boardRoot.right;
+
+            Vector3 local = boardRoot.InverseTransformPoint(currentAnchor.position);
+            if (Mathf.Abs(local.x) >= Mathf.Abs(local.z))
+            {
+                return boardRoot.forward;
+            }
+            return boardRoot.right;
+        }
+
         private static Vector3 ProjectOnPlane(Vector3 v, Vector3 n)
         {
             return v - Vector3.Dot(v, n) * n;
-        }
-
-        private static float SignedAngleOnPlane(Vector3 from, Vector3 to, Vector3 n)
-        {
-            var f = Vector3.Cross(n, from);
-            var t = Vector3.Cross(n, to);
-            float sign = Mathf.Sign(Vector3.Dot(Vector3.Cross(from, to), n));
-            float angle = Vector3.SignedAngle(from, to, n);
-            return angle * sign; // SignedAngle already provides sign; keep explicit for clarity
         }
 
         private static float YawFromForward(Vector3 fwdOnPlane)
@@ -223,7 +295,7 @@ namespace ImmersiveMapInterface.Interaction
             if (fwd.sqrMagnitude < 1e-6f) return 0f;
             fwd.Normalize();
             float horiz = new Vector2(fwd.x, fwd.z).magnitude;
-            return Mathf.Atan2(fwd.y, horiz) * Mathf.Rad2Deg; // +up, -down
+            return Mathf.Atan2(fwd.y, horiz) * Mathf.Rad2Deg;
         }
 
         private void OnDrawGizmosSelected()
@@ -232,29 +304,67 @@ namespace ImmersiveMapInterface.Interaction
             Gizmos.color = anchorGizmoColor;
             foreach (var anchor in grabAnchors)
             {
-                if (anchor == null || anchor.point == null) continue;
+                if (anchor?.point == null) continue;
                 Gizmos.DrawWireSphere(anchor.point.position, anchorSnapDistance);
             }
         }
 
-        private void UpdateGrabVisual(bool active)
+        private void UpdateAnchorVisuals()
         {
-            if (grabVisual == null) return;
-            grabVisual.SetActive(active);
-            if (active)
+            if (grabVisualPrefab == null || grabAnchors == null || grabAnchors.Length == 0) return;
+            EnsureAnchorVisualInstances();
+            for (int i = 0; i < grabAnchors.Length; i++)
             {
-                grabVisual.transform.position = grabHitPoint;
+                var anchor = grabAnchors[i];
+                if (anchor?.point == null) continue;
+                bool active = grabbing && currentAnchorData == anchor;
+                Vector3 pos = anchor.point.position;
+                SetAnchorVisualActive(i, active, pos);
             }
         }
 
-        public void UpdateRayHit(Vector3 hitPoint)
+        private void EnsureAnchorVisualInstances()
         {
-            if (!grabbing) return;
-            grabHitPoint = hitPoint;
-            if (grabVisual != null && grabVisual.activeSelf)
+            if (grabVisualPrefab == null || grabAnchors == null) return;
+            while (anchorVisuals.Count < grabAnchors.Length)
             {
-                grabVisual.transform.position = hitPoint;
+                var instance = Instantiate(grabVisualPrefab, transform);
+                instance.SetActive(false);
+                anchorVisuals.Add(instance);
             }
+        }
+
+        private void HideAllAnchorVisuals()
+        {
+            foreach (var visual in anchorVisuals)
+            {
+                if (visual != null) visual.SetActive(false);
+            }
+        }
+
+        private void SetAnchorVisualActive(int index, bool active, Vector3 position)
+        {
+            EnsureAnchorVisualInstances();
+            if (index < 0 || index >= anchorVisuals.Count) return;
+            var visual = anchorVisuals[index];
+            if (visual == null) return;
+
+            if (!active)
+            {
+                if (visual.activeSelf)
+                {
+                    visual.SetActive(false);
+                    if (logAnchorVisuals) Debug.Log($"BoardGrabRotate: Anchor[{index}] visual OFF");
+                }
+                return;
+            }
+
+            visual.transform.position = position;
+            if (!visual.activeSelf && logAnchorVisuals)
+            {
+                Debug.Log($"BoardGrabRotate: Anchor[{index}] visual ON at {position}");
+            }
+            visual.SetActive(true);
         }
     }
 }

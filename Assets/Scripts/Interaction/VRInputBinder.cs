@@ -6,8 +6,7 @@ using ImmersiveMapInterface.Experiment.Selection;
 namespace ImmersiveMapInterface.Interaction
 {
     /// <summary>
-    /// Maps Quest controller inputs to board/miniature interactions and selection.
-    /// Left hand grip handles board rotation (including miniature), right hand trigger handles selection.
+    /// Routes controller input: right-hand trigger selects, left-hand grip rotates boards.
     /// </summary>
     [DisallowMultipleComponent]
     public class VRInputBinder : MonoBehaviour
@@ -15,18 +14,16 @@ namespace ImmersiveMapInterface.Interaction
         [Header("References")]
         public SelectionSystem selection;
         public BoardGrabRotate grabRotate;
-        [Tooltip("Optional additional grab targets (e.g., miniature board).")]
+        [Tooltip("Other BoardGrabRotate targets (e.g., miniature board).")]
         public BoardGrabRotate[] additionalGrabRotates;
-        public Transform leftHandTransform;  // used for board grabbing / ray hits
-        public Transform rightHandTransform; // used for selection ray
+        public Transform leftHandTransform;
+        public Transform rightHandTransform;
 
         [Header("Settings")]
         [Range(0f, 1f)]
         public float triggerThreshold = 0.5f;
         public bool usePrimaryButtonForSelect = true;
-        [Tooltip("Maximum ray distance for board grabbing (meters).")]
         public float grabRayDistance = 25f;
-        [Tooltip("Layer mask for grab ray hits (set to board/miniature layers).")]
         public LayerMask grabRayMask = ~0;
 
         private InputDevice rightController;
@@ -67,7 +64,12 @@ namespace ImmersiveMapInterface.Interaction
             if (!rightController.isValid || !leftController.isValid) TryCacheDevices();
             AutoAssignIfMissing();
 
-            // Selection (right hand trigger / A button)
+            HandleSelectionInput();
+            HandleBoardGrabInput();
+        }
+
+        private void HandleSelectionInput()
+        {
             float triggerVal = ReadFloat(rightController, CommonUsages.trigger);
             bool triggerPressed = triggerVal >= triggerThreshold || ReadBool(rightController, CommonUsages.triggerButton);
             if (usePrimaryButtonForSelect)
@@ -80,16 +82,20 @@ namespace ImmersiveMapInterface.Interaction
             }
             prevTrigger = triggerPressed;
 
-            // B button clears selection
             bool bPressed = ReadBool(rightController, CommonUsages.secondaryButton);
             if (bPressed && !prevSecondaryButton)
             {
                 selection?.ClearSelection();
             }
             prevSecondaryButton = bPressed;
+        }
 
-            // Left grip -> board/miniature rotation
-            Vector3? currentRayHit = TryGetRayHit(leftHandTransform);
+        private void HandleBoardGrabInput()
+        {
+            Vector3? rayHit = TryGetRayHit(leftHandTransform);
+            Vector3 handPoint = leftHandTransform != null ? leftHandTransform.position : Vector3.zero;
+            UpdateHoverVisual(handPoint, rayHit);
+
             bool gripPressed = ReadBool(leftController, CommonUsages.gripButton);
             if (!gripPressed && activeGrabRotate != null)
             {
@@ -99,12 +105,11 @@ namespace ImmersiveMapInterface.Interaction
 
             if (gripPressed && !prevGrip)
             {
-                Vector3 handPos = leftHandTransform != null ? leftHandTransform.position : Vector3.zero;
-                var target = SelectGrabRotate(handPos, currentRayHit);
+                var target = SelectGrabRotate(handPoint, rayHit);
                 if (target != null)
                 {
                     activeGrabRotate = target;
-                    activeGrabRotate.BeginGrab(leftHandTransform, currentRayHit);
+                    activeGrabRotate.BeginGrab(leftHandTransform, rayHit);
                 }
             }
             else if (gripPressed && activeGrabRotate != null)
@@ -115,13 +120,14 @@ namespace ImmersiveMapInterface.Interaction
                 }
                 else
                 {
-                    if (currentRayHit.HasValue)
+                    if (rayHit.HasValue)
                     {
-                        activeGrabRotate.UpdateRayHit(currentRayHit.Value);
+                        activeGrabRotate.UpdateRayHit(rayHit.Value);
                     }
                     activeGrabRotate.UpdateGrab();
                 }
             }
+
             prevGrip = gripPressed;
         }
 
@@ -218,6 +224,48 @@ namespace ImmersiveMapInterface.Interaction
                 return hit.point;
             }
             return null;
+        }
+
+        private void UpdateHoverVisual(Vector3 handPosition, Vector3? rayHit)
+        {
+            if (activeGrabRotate != null)
+            {
+                activeGrabRotate.UpdateHover(rayHit ?? handPosition, rayHit.HasValue);
+                foreach (var rotate in EnumerateAllRotates())
+                {
+                    if (rotate != activeGrabRotate)
+                    {
+                        rotate.ClearHoverVisuals();
+                    }
+                }
+                return;
+            }
+
+            var target = SelectGrabRotate(handPosition, rayHit);
+            foreach (var rotate in EnumerateAllRotates())
+            {
+                if (rotate == null) continue;
+                if (rotate == target)
+                {
+                    rotate.UpdateHover(rayHit ?? handPosition, rayHit.HasValue);
+                }
+                else
+                {
+                    rotate.ClearHoverVisuals();
+                }
+            }
+        }
+
+        private IEnumerable<BoardGrabRotate> EnumerateAllRotates()
+        {
+            if (grabRotate != null) yield return grabRotate;
+            if (additionalGrabRotates != null)
+            {
+                foreach (var rotate in additionalGrabRotates)
+                {
+                    if (rotate != null) yield return rotate;
+                }
+            }
         }
     }
 }
