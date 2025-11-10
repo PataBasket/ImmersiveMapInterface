@@ -66099,10 +66099,11 @@ MonoBehaviour:
   invertYaw: 1
   useControllerYaw: 1
   allowPitch: 1
-  pitchSensitivity: 1
+  pitchSensitivity: 350
   invertPitch: 0
-  pitchAngleMultiplier: 1
   pitchAngleLimit: 90
+  pitchDeadZoneMeters: 0.01
+  pitchFilterStrength: 0.15
   grabAnchors:
   - point: {fileID: 1845725829}
     allowYaw: 0
