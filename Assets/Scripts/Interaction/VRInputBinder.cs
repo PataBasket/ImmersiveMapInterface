@@ -109,7 +109,8 @@ namespace ImmersiveMapInterface.Interaction
                 if (target != null)
                 {
                     activeGrabRotate = target;
-                    activeGrabRotate.BeginGrab(leftHandTransform, rayHit);
+                    var beginRay = (target.allowRayInput && rayHit.HasValue) ? rayHit : (Vector3?)null;
+                    activeGrabRotate.BeginGrab(leftHandTransform, beginRay);
                 }
             }
             else if (gripPressed && activeGrabRotate != null)
@@ -120,9 +121,10 @@ namespace ImmersiveMapInterface.Interaction
                 }
                 else
                 {
-                    if (rayHit.HasValue)
+                    var activeRay = (activeGrabRotate.allowRayInput && rayHit.HasValue) ? rayHit : (Vector3?)null;
+                    if (activeRay.HasValue)
                     {
-                        activeGrabRotate.UpdateRayHit(rayHit.Value);
+                        activeGrabRotate.UpdateRayHit(activeRay.Value);
                     }
                     activeGrabRotate.UpdateGrab();
                 }
@@ -193,7 +195,7 @@ namespace ImmersiveMapInterface.Interaction
             void Consider(BoardGrabRotate candidate)
             {
                 if (candidate == null || !candidate.enabled || !candidate.gameObject.activeInHierarchy) return;
-                bool isRay = rayHit.HasValue;
+                bool isRay = candidate.allowRayInput && rayHit.HasValue;
                 Vector3 probe = isRay ? rayHit.Value : handPosition;
                 if (!candidate.CanGrabAt(probe, out float score, isRay)) return;
                 if (score < bestScore)
@@ -230,7 +232,8 @@ namespace ImmersiveMapInterface.Interaction
         {
             if (activeGrabRotate != null)
             {
-                activeGrabRotate.UpdateHover(rayHit ?? handPosition, rayHit.HasValue);
+                var activeRay = (activeGrabRotate.allowRayInput && rayHit.HasValue) ? rayHit : (Vector3?)null;
+                activeGrabRotate.UpdateHover(activeRay ?? handPosition, activeRay.HasValue);
                 foreach (var rotate in EnumerateAllRotates())
                 {
                     if (rotate != activeGrabRotate)
@@ -247,7 +250,8 @@ namespace ImmersiveMapInterface.Interaction
                 if (rotate == null) continue;
                 if (rotate == target)
                 {
-                    rotate.UpdateHover(rayHit ?? handPosition, rayHit.HasValue);
+                    bool useRay = rotate.allowRayInput && rayHit.HasValue;
+                    rotate.UpdateHover(useRay ? rayHit.Value : handPosition, useRay);
                 }
                 else
                 {

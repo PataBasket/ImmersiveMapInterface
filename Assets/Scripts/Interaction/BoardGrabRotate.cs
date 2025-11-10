@@ -48,6 +48,10 @@ namespace ImmersiveMapInterface.Interaction
         public bool alignGrabToAnchor = true;
         public bool visualizeAnchors = true;
         public Color anchorGizmoColor = new Color(0.5f, 0.8f, 1f, 0.6f);
+        [Tooltip("Uniform scale multiplier applied to instantiated grab visuals.")]
+        [Min(0.001f)] public float anchorVisualScale = 1f;
+        [Tooltip("If false, hover/grab always use the hand position even if a ray hit exists.")]
+        public bool allowRayInput = true;
 
         [Header("Debug")]
         public bool logAnchorVisuals = false;
@@ -67,6 +71,7 @@ namespace ImmersiveMapInterface.Interaction
         private float filteredDeltaHeight;
         private float pitchInputSign = 1f;
         private readonly List<GameObject> anchorVisuals = new List<GameObject>();
+        private readonly List<Vector3> anchorVisualBaseScales = new List<Vector3>();
 
         public bool IsGrabbing => grabbing;
 
@@ -356,6 +361,8 @@ namespace ImmersiveMapInterface.Interaction
                 var instance = Instantiate(grabVisualPrefab, transform);
                 instance.SetActive(false);
                 anchorVisuals.Add(instance);
+                anchorVisualBaseScales.Add(instance.transform.localScale);
+                ApplyAnchorVisualScale(instance, anchorVisualBaseScales.Count - 1);
             }
         }
 
@@ -373,6 +380,7 @@ namespace ImmersiveMapInterface.Interaction
             if (index < 0 || index >= anchorVisuals.Count) return;
             var visual = anchorVisuals[index];
             if (visual == null) return;
+            ApplyAnchorVisualScale(visual, index);
 
             if (!active)
             {
@@ -390,6 +398,29 @@ namespace ImmersiveMapInterface.Interaction
                 Debug.Log($"BoardGrabRotate: Anchor[{index}] visual ON at {position}");
             }
             visual.SetActive(true);
+        }
+
+        private void ApplyAnchorVisualScale(GameObject visual, int index)
+        {
+            if (visual == null) return;
+            Vector3 baseScale = (index >= 0 && index < anchorVisualBaseScales.Count)
+                ? anchorVisualBaseScales[index]
+                : visual.transform.localScale;
+            visual.transform.localScale = baseScale * anchorVisualScale;
+        }
+
+        private void ApplyAnchorVisualScaleToAll()
+        {
+            for (int i = 0; i < anchorVisuals.Count; i++)
+            {
+                ApplyAnchorVisualScale(anchorVisuals[i], i);
+            }
+        }
+
+        private void OnValidate()
+        {
+            anchorVisualScale = Mathf.Max(0.001f, anchorVisualScale);
+            ApplyAnchorVisualScaleToAll();
         }
     }
 }

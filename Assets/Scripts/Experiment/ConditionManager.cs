@@ -106,6 +106,10 @@ namespace ImmersiveMapInterface.Experiment
                     {
                         miniatureFollower.boardRoot = boardRoot;
                     }
+                    if (miniatureGrabRotate != null)
+                    {
+                        miniatureFollower.grabRotate = miniatureGrabRotate;
+                    }
                     miniatureFollower.enabled = miniActive;
                     miniatureFollower.followYaw = true;
                 }

@@ -12,6 +12,8 @@ namespace ImmersiveMapInterface.Visualization
         public Transform head;
         public Transform miniatureRoot;
         public Transform boardRoot;
+        [Tooltip("Optional: reference to the grab rotate component that controls the miniature.")]
+        public ImmersiveMapInterface.Interaction.BoardGrabRotate grabRotate;
 
         [Header("Placement")]
         public float forwardDistance = 0.5f;
@@ -21,6 +23,15 @@ namespace ImmersiveMapInterface.Visualization
         [Header("Orientation")]
         public bool followYaw = true;
         public bool mirrorBoardYaw = false;
+        [Tooltip("Keep user-applied rotations when the follower updates yaw/position.")]
+        public bool preserveUserRotation = true;
+        [Tooltip("Minimum degrees of change before we treat rotation as a manual input.")]
+        [Range(0f, 10f)] public float manualRotationThreshold = 0.5f;
+
+        private Quaternion manualRotationOffset = Quaternion.identity;
+        private Quaternion lastBaseRotation = Quaternion.identity;
+        private Quaternion lastAppliedRotation = Quaternion.identity;
+        private bool rotationInitialized = false;
 
         private void LateUpdate()
         {
@@ -39,17 +50,54 @@ namespace ImmersiveMapInterface.Visualization
             targetPos.y = head.position.y + heightOffset;
             miniatureRoot.position = targetPos;
 
+            Quaternion currentRotation = miniatureRoot.rotation;
+            Quaternion baseRotation = currentRotation;
+
             if (followYaw)
             {
                 float headYaw = Mathf.Atan2(headForward.x, headForward.z) * Mathf.Rad2Deg;
-                Quaternion yawRot = Quaternion.Euler(0f, headYaw, 0f);
+                baseRotation = Quaternion.Euler(0f, headYaw, 0f);
                 if (mirrorBoardYaw && boardRoot != null)
                 {
                     float boardYaw = boardRoot.rotation.eulerAngles.y;
-                    yawRot = Quaternion.Euler(0f, boardYaw, 0f) * yawRot;
+                    baseRotation = Quaternion.Euler(0f, boardYaw, 0f) * baseRotation;
                 }
-                miniatureRoot.rotation = yawRot;
             }
+
+            if (!rotationInitialized)
+            {
+                lastBaseRotation = baseRotation;
+                lastAppliedRotation = currentRotation;
+                manualRotationOffset = Quaternion.identity;
+                rotationInitialized = true;
+            }
+
+            if (preserveUserRotation && grabRotate != null && grabRotate.IsGrabbing)
+            {
+                float diff = Quaternion.Angle(currentRotation, lastAppliedRotation);
+                if (diff > manualRotationThreshold)
+                {
+                    manualRotationOffset = currentRotation * Quaternion.Inverse(lastBaseRotation);
+                }
+            }
+            else if (!preserveUserRotation)
+            {
+                manualRotationOffset = Quaternion.identity;
+            }
+
+            Quaternion finalRotation;
+            if (followYaw)
+            {
+                finalRotation = baseRotation * manualRotationOffset;
+            }
+            else
+            {
+                finalRotation = preserveUserRotation ? currentRotation : baseRotation;
+            }
+
+            miniatureRoot.rotation = finalRotation;
+            lastBaseRotation = baseRotation;
+            lastAppliedRotation = finalRotation;
         }
     }
 }
