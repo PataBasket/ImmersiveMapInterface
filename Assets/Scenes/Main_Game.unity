@@ -55819,11 +55819,18 @@ MonoBehaviour:
   head: {fileID: 2098454799}
   miniatureRoot: {fileID: 1722625093}
   boardRoot: {fileID: 2071894422}
-  forwardDistance: 0.5
+  grabRotate: {fileID: 1722625094}
+  forwardDistance: 0.4
   heightOffset: -0.5
   lateralOffset: 0
   followYaw: 1
   mirrorBoardYaw: 0
+  preserveUserRotation: 1
+  manualRotationThreshold: 0.5
+  suspendFollowYawWhileGrabbing: 1
+  allowYawAfterTilt: 0
+  tiltAngleEpsilon: 0.5
+  tiltAxisVerticalDot: 0.98
 --- !u!4 &1722625093
 Transform:
   m_ObjectHideFlags: 0
@@ -55861,7 +55868,7 @@ MonoBehaviour:
   invertYaw: 1
   useControllerYaw: 1
   allowPitch: 1
-  pitchSensitivity: 90
+  pitchSensitivity: 350
   invertPitch: 0
   pitchAngleLimit: 90
   pitchDeadZoneMeters: 0.01

@@ -27,11 +27,18 @@ namespace ImmersiveMapInterface.Visualization
         public bool preserveUserRotation = true;
         [Tooltip("Minimum degrees of change before we treat rotation as a manual input.")]
         [Range(0f, 10f)] public float manualRotationThreshold = 0.5f;
+        [Tooltip("When true, yaw alignment is suspended while the board is being grabbed.")]
+        public bool suspendFollowYawWhileGrabbing = true;
+        [Tooltip("If true, yaw alignment resumes even after the user tilts the miniature.")]
+        public bool allowYawAfterTilt = false;
+        [Tooltip("Angles below this value (degrees) are ignored when detecting tilts.")]
+        public float tiltAngleEpsilon = 0.5f;
+        [Tooltip("How closely the rotation axis must align with +Y to be treated as yaw-only (1 = identical).")]
+        [Range(0f, 1f)] public float tiltAxisVerticalDot = 0.98f;
 
         private Quaternion manualRotationOffset = Quaternion.identity;
-        private Quaternion lastBaseRotation = Quaternion.identity;
-        private Quaternion lastAppliedRotation = Quaternion.identity;
         private bool rotationInitialized = false;
+        private bool manualTiltActive = false;
 
         private void LateUpdate()
         {
@@ -51,53 +58,76 @@ namespace ImmersiveMapInterface.Visualization
             miniatureRoot.position = targetPos;
 
             Quaternion currentRotation = miniatureRoot.rotation;
-            Quaternion baseRotation = currentRotation;
+            Quaternion baseYaw = Quaternion.identity;
 
             if (followYaw)
             {
                 float headYaw = Mathf.Atan2(headForward.x, headForward.z) * Mathf.Rad2Deg;
-                baseRotation = Quaternion.Euler(0f, headYaw, 0f);
+                baseYaw = Quaternion.Euler(0f, headYaw, 0f);
                 if (mirrorBoardYaw && boardRoot != null)
                 {
                     float boardYaw = boardRoot.rotation.eulerAngles.y;
-                    baseRotation = Quaternion.Euler(0f, boardYaw, 0f) * baseRotation;
+                    baseYaw = Quaternion.Euler(0f, boardYaw, 0f) * baseYaw;
                 }
             }
 
+            bool isGrabbing = grabRotate != null && grabRotate.IsGrabbing;
+            bool allowYawNow = followYaw
+                               && !(suspendFollowYawWhileGrabbing && isGrabbing)
+                               && !(manualTiltActive && !allowYawAfterTilt);
+
             if (!rotationInitialized)
             {
-                lastBaseRotation = baseRotation;
-                lastAppliedRotation = currentRotation;
-                manualRotationOffset = Quaternion.identity;
+                manualRotationOffset = currentRotation * Quaternion.Inverse(baseYaw);
                 rotationInitialized = true;
+                manualTiltActive = false;
             }
 
             if (preserveUserRotation && grabRotate != null && grabRotate.IsGrabbing)
             {
-                float diff = Quaternion.Angle(currentRotation, lastAppliedRotation);
+                Quaternion targetRotation = baseYaw * manualRotationOffset;
+                float diff = Quaternion.Angle(currentRotation, targetRotation);
                 if (diff > manualRotationThreshold)
                 {
-                    manualRotationOffset = currentRotation * Quaternion.Inverse(lastBaseRotation);
+                    manualRotationOffset = currentRotation * Quaternion.Inverse(baseYaw);
+                    manualTiltActive = ContainsTilt(manualRotationOffset);
                 }
             }
             else if (!preserveUserRotation)
             {
                 manualRotationOffset = Quaternion.identity;
+                manualTiltActive = false;
+            }
+            else if (!manualTiltActive)
+            {
+                manualTiltActive = ContainsTilt(manualRotationOffset);
+            }
+            else if (manualTiltActive && !ContainsTilt(manualRotationOffset))
+            {
+                manualTiltActive = false;
             }
 
-            Quaternion finalRotation;
-            if (followYaw)
+            if (allowYawNow)
             {
-                finalRotation = baseRotation * manualRotationOffset;
+                Quaternion finalRotation = baseYaw * manualRotationOffset;
+                miniatureRoot.rotation = finalRotation;
             }
-            else
-            {
-                finalRotation = preserveUserRotation ? currentRotation : baseRotation;
-            }
+        }
 
-            miniatureRoot.rotation = finalRotation;
-            lastBaseRotation = baseRotation;
-            lastAppliedRotation = finalRotation;
+        private bool ContainsTilt(Quaternion rotation)
+        {
+            rotation.ToAngleAxis(out float angle, out Vector3 axis);
+            if (float.IsNaN(axis.x) || float.IsNaN(axis.y) || float.IsNaN(axis.z))
+            {
+                return false;
+            }
+            if (angle < tiltAngleEpsilon)
+            {
+                return false;
+            }
+            axis = axis.normalized;
+            float verticalDot = Mathf.Abs(Vector3.Dot(axis, Vector3.up));
+            return verticalDot < tiltAxisVerticalDot;
         }
     }
 }
