@@ -27,6 +27,10 @@ namespace ImmersiveMapInterface.Experiment
         public Transform birdAnchor;       // top-down view anchor
         public Transform internalStartAnchor; // internal view start anchor
 
+        [Header("Miniature Options")]
+        [Tooltip("If true, the miniature will align its yaw with the head while active.")]
+        public bool miniatureFollowsHeadYaw = false;
+
         [Header("Bounds Override (Internal)")]
         [Tooltip("If enabled, ConditionManager will set BirdHeadLocomotion bounds on ApplyCondition.")]
         public bool overrideBounds = false;
@@ -111,7 +115,8 @@ namespace ImmersiveMapInterface.Experiment
                         miniatureFollower.grabRotate = miniatureGrabRotate;
                     }
                     miniatureFollower.enabled = miniActive;
-                    miniatureFollower.followYaw = true;
+                    miniatureFollower.followYaw = miniatureFollowsHeadYaw;
+                    miniatureFollower.allowYawAfterTilt = miniatureFollowsHeadYaw;
                 }
                 if (miniatureGrabRotate != null)
                 {

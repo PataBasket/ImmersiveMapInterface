@@ -30,15 +30,15 @@ namespace ImmersiveMapInterface.Visualization
         [Tooltip("When true, yaw alignment is suspended while the board is being grabbed.")]
         public bool suspendFollowYawWhileGrabbing = true;
         [Tooltip("If true, yaw alignment resumes even after the user tilts the miniature.")]
-        public bool allowYawAfterTilt = false;
+        public bool allowYawAfterTilt = true;
         [Tooltip("Angles below this value (degrees) are ignored when detecting tilts.")]
         public float tiltAngleEpsilon = 0.5f;
-        [Tooltip("How closely the rotation axis must align with +Y to be treated as yaw-only (1 = identical).")]
-        [Range(0f, 1f)] public float tiltAxisVerticalDot = 0.98f;
+        [Tooltip("Minimum dot product with world up to consider the board 'upright'.")]
+        [Range(0f, 1f)] public float tiltUprightDotThreshold = 0.995f;
 
         private Quaternion manualRotationOffset = Quaternion.identity;
         private bool rotationInitialized = false;
-        private bool manualTiltActive = false;
+        private bool wasGrabbing = false;
 
         private void LateUpdate()
         {
@@ -72,15 +72,15 @@ namespace ImmersiveMapInterface.Visualization
             }
 
             bool isGrabbing = grabRotate != null && grabRotate.IsGrabbing;
+            bool rotationHasTilt = HasTilt(miniatureRoot.rotation);
             bool allowYawNow = followYaw
                                && !(suspendFollowYawWhileGrabbing && isGrabbing)
-                               && !(manualTiltActive && !allowYawAfterTilt);
+                               && !(rotationHasTilt && !allowYawAfterTilt);
 
             if (!rotationInitialized)
             {
-                manualRotationOffset = currentRotation * Quaternion.Inverse(baseYaw);
+                manualRotationOffset = Quaternion.Inverse(baseYaw) * currentRotation;
                 rotationInitialized = true;
-                manualTiltActive = false;
             }
 
             if (preserveUserRotation && grabRotate != null && grabRotate.IsGrabbing)
@@ -89,22 +89,16 @@ namespace ImmersiveMapInterface.Visualization
                 float diff = Quaternion.Angle(currentRotation, targetRotation);
                 if (diff > manualRotationThreshold)
                 {
-                    manualRotationOffset = currentRotation * Quaternion.Inverse(baseYaw);
-                    manualTiltActive = ContainsTilt(manualRotationOffset);
+                    manualRotationOffset = Quaternion.Inverse(baseYaw) * currentRotation;
                 }
             }
             else if (!preserveUserRotation)
             {
                 manualRotationOffset = Quaternion.identity;
-                manualTiltActive = false;
             }
-            else if (!manualTiltActive)
+            else if (!isGrabbing && wasGrabbing)
             {
-                manualTiltActive = ContainsTilt(manualRotationOffset);
-            }
-            else if (manualTiltActive && !ContainsTilt(manualRotationOffset))
-            {
-                manualTiltActive = false;
+                manualRotationOffset = Quaternion.Inverse(baseYaw) * currentRotation;
             }
 
             if (allowYawNow)
@@ -112,22 +106,25 @@ namespace ImmersiveMapInterface.Visualization
                 Quaternion finalRotation = baseYaw * manualRotationOffset;
                 miniatureRoot.rotation = finalRotation;
             }
+
+            wasGrabbing = isGrabbing;
         }
 
-        private bool ContainsTilt(Quaternion rotation)
+        private bool HasTilt(Quaternion rotation)
         {
-            rotation.ToAngleAxis(out float angle, out Vector3 axis);
-            if (float.IsNaN(axis.x) || float.IsNaN(axis.y) || float.IsNaN(axis.z))
+            Vector3 up = rotation * Vector3.up;
+            if (float.IsNaN(up.x) || float.IsNaN(up.y) || float.IsNaN(up.z))
             {
                 return false;
             }
-            if (angle < tiltAngleEpsilon)
+            up.Normalize();
+            float dot = Vector3.Dot(up, Vector3.up);
+            if (dot >= tiltUprightDotThreshold)
             {
                 return false;
             }
-            axis = axis.normalized;
-            float verticalDot = Mathf.Abs(Vector3.Dot(axis, Vector3.up));
-            return verticalDot < tiltAxisVerticalDot;
+            rotation.ToAngleAxis(out float angle, out _);
+            return angle >= tiltAngleEpsilon;
         }
     }
 }

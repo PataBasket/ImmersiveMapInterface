@@ -43897,6 +43897,7 @@ MonoBehaviour:
   miniatureFollower: {fileID: 1722625092}
   birdAnchor: {fileID: 1948996181}
   internalStartAnchor: {fileID: 1370613151}
+  miniatureFollowsHeadYaw: 1
   overrideBounds: 1
   boundsCenterOverride: {fileID: 1660730928}
   boundsHalfSizeOverride: {x: 5, y: 5, z: 5}
