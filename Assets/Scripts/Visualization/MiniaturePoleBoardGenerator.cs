@@ -62,12 +62,14 @@ namespace ImmersiveMapInterface.Visualization
 
         private Renderer[,] pieceRenderers = new Renderer[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
         private GameObject[,] pieceObjects = new GameObject[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
+        private PoleBasedBoardState.PieceColor[,] renderedColors = new PoleBasedBoardState.PieceColor[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
         private static MaterialPropertyBlock propertyBlock;
         private Dictionary<int, Vector3> layoutLocalPositions;
         private Dictionary<int, Quaternion> layoutLocalRotations;
         private Vector3 prefabScaleCompensation = Vector3.one;
         private bool prefabScaleCached = false;
-        private GameObject cachedPrefabForScale;
+        private GameObject cachedPrefabForScale;        private bool boardStateSubscribed = false;
+
 
         private void OnValidate()
         {
@@ -82,23 +84,32 @@ namespace ImmersiveMapInterface.Visualization
 
         private void OnEnable()
         {
+            EnsureBoardState();
             EnsureGenerated();
-            if (boardState != null)
-            {
-                boardState.OnPieceChanged += HandlePieceChanged;
-                boardState.OnBoardReset += HandleBoardReset;
-            }
+            SubscribeBoardState();
+            HandleBoardReset();
         }
 
         private void OnDisable()
         {
-            if (boardState != null)
+            UnsubscribeBoardState();
+        }
+
+        public void SetBoardState(PoleBasedBoardState newBoardState)
+        {
+            if (boardState == newBoardState) return;
+            UnsubscribeBoardState();
+            boardState = newBoardState;
+            if (isActiveAndEnabled)
             {
-                boardState.OnPieceChanged -= HandlePieceChanged;
-                boardState.OnBoardReset -= HandleBoardReset;
+                EnsureBoardState();
+                EnsureGenerated();
+                SubscribeBoardState();
+                HandleBoardReset();
             }
         }
 
+        [ContextMenu("Ensure Generated")]
         public void EnsureGenerated()
         {
             if (piecePrefab == null)
@@ -123,6 +134,7 @@ namespace ImmersiveMapInterface.Visualization
             }
 
             ClearPieces();
+            renderedColors = new PoleBasedBoardState.PieceColor[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
             for (int pole = 0; pole < PoleBasedBoardState.PoleCount; pole++)
             {
                 PoleBasedBoardState.PoleIndexToGrid(pole, out int x, out int z);
@@ -195,7 +207,7 @@ namespace ImmersiveMapInterface.Visualization
             }
             if (boardState == null)
             {
-                Debug.LogWarning("MiniaturePoleBoardGenerator: boardState not assigned. Pieces will not reflect actual board colors.");
+                Debug.LogWarning("MiniaturePoleBoardGenerator: boardState not assigned. Pieces will not reflect actual board colors.", this);
             }
 
             if (useWorldScale && worldBoardRoot == null)
@@ -207,6 +219,24 @@ namespace ImmersiveMapInterface.Visualization
             {
                 worldPivot = worldBoardRoot;
             }
+        }
+
+        private void SubscribeBoardState()
+        {
+            if (boardState == null || boardStateSubscribed) return;
+            boardState.OnPieceChanged += HandlePieceChanged;
+            boardState.OnBoardReset += HandleBoardReset;
+            boardStateSubscribed = true;
+            Debug.Log($"MiniaturePoleBoardGenerator: Subscribed to board state '{boardState.name}'.", this);
+        }
+
+        private void UnsubscribeBoardState()
+        {
+            if (boardState == null || !boardStateSubscribed) return;
+            boardState.OnPieceChanged -= HandlePieceChanged;
+            boardState.OnBoardReset -= HandleBoardReset;
+            boardStateSubscribed = false;
+            Debug.Log("MiniaturePoleBoardGenerator: Unsubscribed from board state.", this);
         }
 
         private Vector3 ApplyScaleCompensation(Vector3 targetScale)
@@ -311,6 +341,16 @@ namespace ImmersiveMapInterface.Visualization
                     layoutLocalRotations[poleIndex] = localRot;
                 }
             }
+
+            int count = layoutLocalPositions != null ? layoutLocalPositions.Count : 0;
+            if (count != PoleBasedBoardState.PoleCount)
+            {
+                Debug.LogWarning($"MiniaturePoleBoardGenerator: cached {count} pole transforms (expected {PoleBasedBoardState.PoleCount}). Check pole naming under '{(sourceRoot != null ? sourceRoot.name : "<null>")}'.", this);
+            }
+            else
+            {
+                Debug.Log($"MiniaturePoleBoardGenerator: cached all {count} pole transforms.", this);
+            }
         }
 
         private void ApplyReferenceBoardSettings()
@@ -346,11 +386,12 @@ namespace ImmersiveMapInterface.Visualization
 
         private void HandleBoardReset()
         {
+            if (boardState == null) return;
             for (int pole = 0; pole < PoleBasedBoardState.PoleCount; pole++)
             {
                 for (int slot = 0; slot < PoleBasedBoardState.PiecesPerPole; slot++)
                 {
-                    UpdateRenderer(pole, slot, boardState != null ? boardState.GetPiece(pole, slot) : PoleBasedBoardState.PieceColor.Empty);
+                    UpdateRenderer(pole, slot, boardState.GetPiece(pole, slot));
                 }
             }
         }
@@ -387,6 +428,44 @@ namespace ImmersiveMapInterface.Visualization
                 propertyBlock.SetColor("_Color", fallback);
                 r.SetPropertyBlock(propertyBlock);
             }
+            renderedColors[pole, slot] = color;
+        }
+
+        [ContextMenu("Validate Against BoardState")]
+        private void ValidateAgainstBoardState()
+        {
+            if (boardState == null)
+            {
+                Debug.LogWarning("MiniaturePoleBoardGenerator: cannot validate without boardState.", this);
+                return;
+            }
+
+            int mismatch = 0;
+            for (int pole = 0; pole < PoleBasedBoardState.PoleCount; pole++)
+            {
+                for (int slot = 0; slot < PoleBasedBoardState.PiecesPerPole; slot++)
+                {
+                    var expected = boardState.GetPiece(pole, slot);
+                    var actual = renderedColors[pole, slot];
+                    if (expected != actual)
+                    {
+                        mismatch++;
+                        if (mismatch < 5)
+                        {
+                            Debug.LogWarning($"Miniature mismatch: pole {pole} slot {slot} expected {expected} but rendered {actual}.", this);
+                        }
+                    }
+                }
+            }
+
+            if (mismatch == 0)
+            {
+                Debug.Log("Miniature validation passed: all rendered colors match boardState.", this);
+            }
+            else
+            {
+                Debug.LogWarning($"Miniature validation found {mismatch} mismatched cells. See warnings above for samples.", this);
+            }
         }
 
         private void EnsurePropertyBlock()
@@ -421,3 +500,4 @@ namespace ImmersiveMapInterface.Visualization
         }
     }
 }
+

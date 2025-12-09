@@ -22,6 +22,7 @@ namespace ImmersiveMapInterface.Experiment
         public GameObject miniatureRoot; // container for miniature
         public ImmersiveMapInterface.Interaction.BoardGrabRotate miniatureGrabRotate; // optional BoardGrabRotate for miniature
         public ImmersiveMapInterface.Visualization.MiniatureFollower miniatureFollower;  // optional follower for miniature
+        public ImmersiveMapInterface.Visualization.MiniaturePoleBoardGenerator miniatureBoardGenerator;
 
         [Header("Anchors")] 
         public Transform birdAnchor;       // top-down view anchor
@@ -100,6 +101,27 @@ namespace ImmersiveMapInterface.Experiment
             if (miniatureRoot != null)
             {
                 bool miniActive = miniatureRoot.activeSelf;
+                PoleBasedBoardState sharedBoard = null;
+                if (groundRoot != null)
+                {
+                    sharedBoard = groundRoot.GetComponent<PoleBasedBoardState>();
+                }
+                if (sharedBoard == null && boardRoot != null)
+                {
+                    sharedBoard = boardRoot.GetComponentInChildren<PoleBasedBoardState>();
+                }
+                if (miniatureBoardGenerator == null)
+                {
+                    miniatureBoardGenerator = miniatureRoot.GetComponentInChildren<ImmersiveMapInterface.Visualization.MiniaturePoleBoardGenerator>(true);
+                }
+                if (miniatureBoardGenerator != null)
+                {
+                    if (sharedBoard == null)
+                    {
+                        Debug.LogWarning("ConditionManager: shared PoleBasedBoardState not found. Miniature colors may be incorrect.", this);
+                    }
+                    miniatureBoardGenerator.SetBoardState(sharedBoard);
+                }
                 if (miniatureFollower != null)
                 {
                     if (miniatureFollower.head == null && headTransform != null)
