@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using ImmersiveMapInterface.Board;
@@ -12,6 +13,8 @@ namespace ImmersiveMapInterface.Visualization
         [SerializeField] private PoleBasedBoardState boardState;
         [SerializeField] private GameObject piecePrefab;
         [SerializeField] private bool autoFindBoardState = true;
+        [Tooltip("Play開始時に既存の駒を保持したい場合は false に設定。true のままなら OnEnable で常に再生成します。")]
+        [SerializeField] private bool autoGenerateOnEnable = false;
         [Tooltip("Optional: assign a pole layout (e.g., WorldInMiniature with child pole_# objects) to match spacing/rotation.")]
         [SerializeField] private Transform poleLayoutRoot;
         [SerializeField] private bool usePoleLayout = true;
@@ -68,7 +71,9 @@ namespace ImmersiveMapInterface.Visualization
         private Dictionary<int, Quaternion> layoutLocalRotations;
         private Vector3 prefabScaleCompensation = Vector3.one;
         private bool prefabScaleCached = false;
-        private GameObject cachedPrefabForScale;        private bool boardStateSubscribed = false;
+        private GameObject cachedPrefabForScale;
+        private bool boardStateSubscribed = false;
+        private const int ExpectedPieceCount = PoleBasedBoardState.PoleCount * PoleBasedBoardState.PiecesPerPole;
 
 
         private void OnValidate()
@@ -85,7 +90,19 @@ namespace ImmersiveMapInterface.Visualization
         private void OnEnable()
         {
             EnsureBoardState();
-            EnsureGenerated();
+            if (autoGenerateOnEnable)
+            {
+                EnsureGenerated();
+            }
+            else if (!AdoptExistingPieces())
+            {
+                EnsureGenerated();
+            }
+            else
+            {
+                EnsurePropertyBlock();
+            }
+
             SubscribeBoardState();
             HandleBoardReset();
         }
@@ -103,7 +120,19 @@ namespace ImmersiveMapInterface.Visualization
             if (isActiveAndEnabled)
             {
                 EnsureBoardState();
-                EnsureGenerated();
+                if (autoGenerateOnEnable || transform.childCount == 0)
+                {
+                    EnsureGenerated();
+                }
+                else if (!AdoptExistingPieces())
+                {
+                    EnsureGenerated();
+                }
+                else
+                {
+                    EnsurePropertyBlock();
+                }
+
                 SubscribeBoardState();
                 HandleBoardReset();
             }
@@ -183,20 +212,110 @@ namespace ImmersiveMapInterface.Visualization
 
         private void ClearPieces()
         {
-            if (pieceObjects == null) return;
+            DestroyGeneratedChildren();
+            ResetPieceArrays();
+        }
+
+        private void DestroyGeneratedChildren()
+        {
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                var child = transform.GetChild(i);
+                if (child == null) continue;
+                if (!ShouldRemoveChild(child)) continue;
+                DestroyPieceObject(child.gameObject);
+            }
+        }
+
+        private static bool ShouldRemoveChild(Transform child)
+        {
+            if (child == null) return false;
+            string name = child.name;
+            return name.StartsWith("MiniPiece_", StringComparison.OrdinalIgnoreCase) ||
+                   name.StartsWith("Piece_", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void DestroyPieceObject(GameObject go)
+        {
+            if (go == null) return;
+            if (Application.isPlaying)
+                Destroy(go);
+            else
+                DestroyImmediate(go);
+        }
+
+        private void ResetPieceArrays()
+        {
             for (int pole = 0; pole < PoleBasedBoardState.PoleCount; pole++)
             {
                 for (int slot = 0; slot < PoleBasedBoardState.PiecesPerPole; slot++)
                 {
-                    if (pieceObjects[pole, slot] == null) continue;
-                    if (Application.isPlaying)
-                        Destroy(pieceObjects[pole, slot]);
-                    else
-                        DestroyImmediate(pieceObjects[pole, slot]);
                     pieceObjects[pole, slot] = null;
                     pieceRenderers[pole, slot] = null;
                 }
             }
+        }
+
+        private bool AdoptExistingPieces()
+        {
+            if (transform.childCount == 0) return false;
+
+            ResetPieceArrays();
+            renderedColors = new PoleBasedBoardState.PieceColor[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
+
+            int mapped = 0;
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                var child = transform.GetChild(i);
+                if (child == null) continue;
+                if (!TryParsePieceName(child.name, out int poleIndex, out int slotIndex)) continue;
+                if (!PoleBasedBoardState.IsValidPoleSlot(poleIndex, slotIndex)) continue;
+
+                pieceObjects[poleIndex, slotIndex] = child.gameObject;
+                pieceRenderers[poleIndex, slotIndex] = child.GetComponentInChildren<Renderer>(true);
+                mapped++;
+            }
+
+            if (mapped == 0)
+            {
+                Debug.LogWarning("MiniaturePoleBoardGenerator: 既存の MiniPiece 子オブジェクトを検出できませんでした。Ensure Generated を実行して再作成します。", this);
+                ResetPieceArrays();
+                return false;
+            }
+
+            if (mapped != ExpectedPieceCount)
+            {
+                Debug.LogWarning($"MiniaturePoleBoardGenerator: MiniPiece を {mapped} 個だけ検出しました (期待 {ExpectedPieceCount})。不足分は必要に応じて Ensure Generated で補ってください (自動再生成は行いません)。", this);
+            }
+
+            return true;
+        }
+
+        private static bool TryParsePieceName(string name, out int poleIndex, out int slotIndex)
+        {
+            poleIndex = -1;
+            slotIndex = -1;
+            if (string.IsNullOrEmpty(name)) return false;
+
+            int poleMarker = name.IndexOf("_P", StringComparison.OrdinalIgnoreCase);
+            int slotMarker = name.IndexOf("_S", StringComparison.OrdinalIgnoreCase);
+            if (poleMarker < 0 || slotMarker < 0 || slotMarker <= poleMarker) return false;
+
+            int poleStart = poleMarker + 2;
+            int poleEnd = name.IndexOf('_', poleStart);
+            if (poleEnd < 0 || poleEnd > slotMarker) poleEnd = slotMarker;
+            if (poleEnd <= poleStart) return false;
+
+            if (!int.TryParse(name.Substring(poleStart, poleEnd - poleStart), out poleIndex)) return false;
+
+            int slotStart = slotMarker + 2;
+            int slotEnd = name.IndexOf('_', slotStart);
+            if (slotEnd < 0) slotEnd = name.Length;
+            if (slotEnd <= slotStart) return false;
+
+            if (!int.TryParse(name.Substring(slotStart, slotEnd - slotStart), out slotIndex)) return false;
+
+            return true;
         }
 
         private void EnsureBoardState()

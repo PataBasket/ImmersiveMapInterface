@@ -20,6 +20,17 @@ namespace ImmersiveMapInterface.Board
         [SerializeField] private float pieceSpacing = 1.0f;
 		[SerializeField] private Transform poleParent; // Ground object with pole children
 		[SerializeField] private Transform piecesRoot; // Optional parent for pieces (scale 1,1,1)
+        [Header("Pole Layout Override")]
+        [Tooltip("If true, use child transforms named with the pole prefix (e.g., pole_0) for precise placement.")]
+        [SerializeField] private bool usePoleTransforms = true;
+        [Tooltip("When using pole transforms, align piece rotation with the pole's orientation before applying the extra Euler offset.")]
+        [SerializeField] private bool inheritPoleOrientation = true;
+        [Tooltip("Prefix used when parsing pole child names. The suffix must be the pole index (0-63).")]
+        [SerializeField] private string poleNamePrefix = "pole_";
+        [Tooltip("If true, pole transformの回転・位置はポール中央を指すものとみなし、スタック全体を半分だけ下げます。")]
+        [SerializeField] private bool polePivotIsCenter = true;
+        [Tooltip("ポールのup方向に沿って適用する追加オフセット（メートル）。Pivotを基準に最下段を微調整できます。")]
+        [SerializeField] private float poleBaseOffset = 0f;
 
         [Header("Piece Appearance")]
         [SerializeField] private float pieceScale = 0.8f;
@@ -51,11 +62,21 @@ namespace ImmersiveMapInterface.Board
         public float PieceScale => pieceScale;
 
         private GameObject[,] pieceObjects = new GameObject[PoleBasedBoardState.PoleCount, PoleBasedBoardState.PiecesPerPole];
+        private Transform[] cachedPoleTransforms;
+        private Transform cachedPoleRoot;
+        private int cachedPoleCount = -1;
+        private bool poleLayoutDirty = true;
 
         private void Awake()
         {
             if (boardState == null) boardState = GetComponent<PoleBasedBoardState>();
             if (poleParent == null) poleParent = GameObject.Find("Ground")?.transform;
+            poleLayoutDirty = true;
+        }
+
+        private void OnValidate()
+        {
+            poleLayoutDirty = true;
         }
 
         private void OnEnable()
@@ -92,14 +113,35 @@ namespace ImmersiveMapInterface.Board
 
             // Clear existing pieces
             ClearPieces();
+            CachePoleTransforms();
 
             // Generate pieces for each pole
             for (int poleIndex = 0; poleIndex < PoleBasedBoardState.PoleCount; poleIndex++)
             {
                 for (int slotIndex = 0; slotIndex < PoleBasedBoardState.PiecesPerPole; slotIndex++)
                 {
-				Vector3 worldPos = PoleBasedBoardState.GetPieceWorldPosition(poleIndex, slotIndex, poleParent, poleSpacing, pieceSpacing);
+				Transform poleTransform = GetPoleTransform(poleIndex);
+				Vector3 worldPos;
 				Quaternion worldRot = Quaternion.Euler(pieceRotationEuler);
+				if (poleTransform != null)
+				{
+					Vector3 up = poleTransform.up.sqrMagnitude > 1e-5f ? poleTransform.up.normalized : Vector3.up;
+					float baseOffset = poleBaseOffset;
+					if (polePivotIsCenter)
+					{
+						baseOffset -= PoleBasedBoardState.PiecesPerPole * pieceSpacing * 0.5f;
+					}
+					float vertical = baseOffset + (slotIndex + 0.5f) * pieceSpacing;
+					worldPos = poleTransform.position + up * vertical;
+					if (inheritPoleOrientation)
+					{
+						worldRot = poleTransform.rotation * Quaternion.Euler(pieceRotationEuler);
+					}
+				}
+				else
+				{
+					worldPos = PoleBasedBoardState.GetPieceWorldPosition(poleIndex, slotIndex, poleParent, poleSpacing, pieceSpacing);
+				}
 				
 				Transform parentForPiece = piecesRoot != null ? piecesRoot : transform;
                     GameObject piece = Instantiate(piecePrefab, worldPos, worldRot, parentForPiece);
@@ -132,7 +174,7 @@ namespace ImmersiveMapInterface.Board
                 {
                     if (pieceObjects[pole, slot] != null)
                     {
-                        DestroyImmediate(pieceObjects[pole, slot]);
+                        DestroyPieceObject(pieceObjects[pole, slot]);
                         pieceObjects[pole, slot] = null;
                     }
                 }
@@ -299,5 +341,90 @@ namespace ImmersiveMapInterface.Board
 		{
 			DeletePieces();
 		}
+
+        private void CachePoleTransforms()
+        {
+            if (!usePoleTransforms)
+            {
+                cachedPoleTransforms = null;
+                cachedPoleRoot = null;
+                cachedPoleCount = -1;
+                return;
+            }
+
+            if (poleParent == null)
+            {
+                Debug.LogWarning("PoleBasedBoardGenerator: Pole parent missing, cannot cache pole transforms.", this);
+                cachedPoleTransforms = null;
+                cachedPoleRoot = null;
+                cachedPoleCount = -1;
+                return;
+            }
+
+            if (!poleLayoutDirty && cachedPoleRoot == poleParent && cachedPoleTransforms != null)
+            {
+                return;
+            }
+
+            poleLayoutDirty = false;
+            cachedPoleRoot = poleParent;
+            if (cachedPoleTransforms == null || cachedPoleTransforms.Length != PoleBasedBoardState.PoleCount)
+            {
+                cachedPoleTransforms = new Transform[PoleBasedBoardState.PoleCount];
+            }
+            Array.Clear(cachedPoleTransforms, 0, cachedPoleTransforms.Length);
+
+            foreach (Transform child in poleParent.GetComponentsInChildren<Transform>(true))
+            {
+                if (TryParsePoleIndex(child.name, out int poleIndex) && (uint)poleIndex < cachedPoleTransforms.Length)
+                {
+                    cachedPoleTransforms[poleIndex] = child;
+                }
+            }
+
+            int count = 0;
+            for (int i = 0; i < cachedPoleTransforms.Length; i++)
+            {
+                if (cachedPoleTransforms[i] != null) count++;
+            }
+
+            if (count != cachedPoleCount)
+            {
+                cachedPoleCount = count;
+                if (count == PoleBasedBoardState.PoleCount)
+                {
+                    Debug.Log("PoleBasedBoardGenerator: cached all pole transforms.", this);
+                }
+                else
+                {
+                    Debug.LogWarning($"PoleBasedBoardGenerator: cached {count} pole transforms (expected {PoleBasedBoardState.PoleCount}). Missing poles will fall back to uniform grid positions.", this);
+                }
+            }
+        }
+
+        private Transform GetPoleTransform(int poleIndex)
+        {
+            if (!usePoleTransforms || cachedPoleTransforms == null) return null;
+            if ((uint)poleIndex >= cachedPoleTransforms.Length) return null;
+            return cachedPoleTransforms[poleIndex];
+        }
+
+        private bool TryParsePoleIndex(string name, out int poleIndex)
+        {
+            poleIndex = -1;
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(poleNamePrefix)) return false;
+            if (!name.StartsWith(poleNamePrefix, StringComparison.OrdinalIgnoreCase)) return false;
+            var suffix = name.Substring(poleNamePrefix.Length);
+            return int.TryParse(suffix, out poleIndex);
+        }
+
+        private void DestroyPieceObject(GameObject go)
+        {
+            if (go == null) return;
+            if (Application.isPlaying)
+                Destroy(go);
+            else
+                DestroyImmediate(go);
+        }
     }
 }

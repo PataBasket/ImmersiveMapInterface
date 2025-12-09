@@ -21,36 +21,64 @@ namespace ImmersiveMapInterface.Board
             Black = 2
         }
 
-        [SerializeField] private PieceColor[,] polePieces = new PieceColor[PoleCount, PiecesPerPole];
+        [SerializeField, HideInInspector] private PieceColor[] serializedPieces = new PieceColor[TotalPieces];
 
         public event Action<int, int, PieceColor>? OnPieceChanged; // poleIndex, slotIndex, color
         public event Action? OnBoardReset;
 
+        private void OnValidate()
+        {
+            if (serializedPieces == null || serializedPieces.Length != TotalPieces)
+            {
+                serializedPieces = new PieceColor[TotalPieces];
+            }
+        }
+
+        private void Awake()
+        {
+            if (serializedPieces == null || serializedPieces.Length != TotalPieces)
+            {
+                serializedPieces = new PieceColor[TotalPieces];
+            }
+        }
+
         public PieceColor GetPiece(int poleIndex, int slotIndex)
         {
             if (!IsValidPoleSlot(poleIndex, slotIndex)) return PieceColor.Empty;
-            return polePieces[poleIndex, slotIndex];
+            return serializedPieces[ToFlatIndex(poleIndex, slotIndex)];
         }
 
         public void SetPiece(int poleIndex, int slotIndex, PieceColor color)
         {
             if (!IsValidPoleSlot(poleIndex, slotIndex)) return;
-            if (polePieces[poleIndex, slotIndex] == color) return;
+            int flat = ToFlatIndex(poleIndex, slotIndex);
+            if (serializedPieces[flat] == color) return;
             
-            polePieces[poleIndex, slotIndex] = color;
+            serializedPieces[flat] = color;
             OnPieceChanged?.Invoke(poleIndex, slotIndex, color);
         }
 
         public void Clear(PieceColor fill = PieceColor.Empty)
         {
-            for (int pole = 0; pole < PoleCount; pole++)
+            for (int i = 0; i < serializedPieces.Length; i++)
             {
-                for (int slot = 0; slot < PiecesPerPole; slot++)
-                {
-                    polePieces[pole, slot] = fill;
-                }
+                serializedPieces[i] = fill;
             }
             OnBoardReset?.Invoke();
+        }
+
+        public bool HasAnyColoredPieces()
+        {
+            for (int i = 0; i < serializedPieces.Length; i++)
+            {
+                if (serializedPieces[i] != PieceColor.Empty) return true;
+            }
+            return false;
+        }
+
+        private static int ToFlatIndex(int poleIndex, int slotIndex)
+        {
+            return poleIndex * PiecesPerPole + slotIndex;
         }
 
         public static bool IsValidPoleSlot(int poleIndex, int slotIndex)

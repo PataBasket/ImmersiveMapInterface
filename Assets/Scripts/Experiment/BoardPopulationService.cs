@@ -14,6 +14,7 @@ namespace ImmersiveMapInterface.Experiment
         [Header("Options")]
         [SerializeField] private bool logDetails = false;
         [SerializeField] private bool autoGenerateOnPlay = true;
+        [SerializeField] private bool skipAutoGenerationIfBoardHasPieces = true;
 
         private List<(int p1, int s1, int p2, int s2, int p3, int s3, int p4, int s4)> cachedLines;
 
@@ -26,6 +27,14 @@ namespace ImmersiveMapInterface.Experiment
         private void Start()
         {
             if (!Application.isPlaying || !autoGenerateOnPlay) return;
+            if (skipAutoGenerationIfBoardHasPieces && boardState != null && boardState.HasAnyColoredPieces())
+            {
+                if (logDetails)
+                {
+                    Debug.Log("BoardPopulationService: auto generation skipped because board already has pieces.", this);
+                }
+                return;
+            }
             GenerateFromPattern();
         }
 
