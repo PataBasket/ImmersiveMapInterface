@@ -12,26 +12,102 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0732615db2ace24f855ab9330529841, type: 3}
   m_Name: PatternDefinition
   m_EditorClassIdentifier: 
-  patternId: 114433f8-ca6d-4026-8fe9-d94f498305de
-  patternName: TestPattern
-  line1:
-    a:
-      poleIndex: 0
+  patternId: c81443a9-4d20-4585-8b81-c122e52d6f48
+  patternName: Pattern Set A
+  lines:
+  - a:
+      poleIndex: 53
+      slotIndex: 2
+    b:
+      poleIndex: 53
+      slotIndex: 5
+  - a:
+      poleIndex: 7
       slotIndex: 0
     b:
-      poleIndex: 0
+      poleIndex: 7
       slotIndex: 3
-  line2:
-    a:
+  - a:
+      poleIndex: 51
+      slotIndex: 1
+    b:
+      poleIndex: 51
+      slotIndex: 4
+  - a:
+      poleIndex: 28
+      slotIndex: 4
+    b:
+      poleIndex: 28
+      slotIndex: 7
+  - a:
+      poleIndex: 37
+      slotIndex: 3
+    b:
+      poleIndex: 37
+      slotIndex: 6
+  - a:
+      poleIndex: 23
+      slotIndex: 6
+    b:
+      poleIndex: 20
+      slotIndex: 6
+  - a:
+      poleIndex: 55
+      slotIndex: 0
+    b:
+      poleIndex: 52
+      slotIndex: 0
+  - a:
+      poleIndex: 20
+      slotIndex: 4
+    b:
+      poleIndex: 23
+      slotIndex: 4
+  - a:
+      poleIndex: 14
+      slotIndex: 6
+    b:
+      poleIndex: 11
+      slotIndex: 6
+  - a:
+      poleIndex: 63
+      slotIndex: 0
+    b:
+      poleIndex: 60
+      slotIndex: 0
+  - a:
+      poleIndex: 34
+      slotIndex: 4
+    b:
+      poleIndex: 37
+      slotIndex: 1
+  - a:
+      poleIndex: 33
+      slotIndex: 4
+    b:
+      poleIndex: 36
+      slotIndex: 1
+  - a:
+      poleIndex: 48
+      slotIndex: 7
+    b:
+      poleIndex: 27
+      slotIndex: 7
+  - a:
+      poleIndex: 28
+      slotIndex: 0
+    b:
+      poleIndex: 49
+      slotIndex: 0
+  - a:
+      poleIndex: 33
+      slotIndex: 0
+    b:
+      poleIndex: 9
+      slotIndex: 3
+  - a:
+      poleIndex: 25
+      slotIndex: 2
+    b:
       poleIndex: 1
-      slotIndex: 0
-    b:
-      poleIndex: 1
-      slotIndex: 3
-  line3:
-    a:
-      poleIndex: 2
-      slotIndex: 0
-    b:
-      poleIndex: 2
-      slotIndex: 3
+      slotIndex: 5

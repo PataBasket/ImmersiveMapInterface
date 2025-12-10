@@ -26,25 +26,38 @@ namespace ImmersiveMapInterface.Experiment
         public string patternId = Guid.NewGuid().ToString();
         public string patternName = "Pattern";
 
-        [Header("Three target white lines (non-overlapping)")]
-        [Tooltip("Each line is specified by two endpoints; code will complete the 4 cells.")]
-        public LineEndpoints line1;
-        public LineEndpoints line2;
-        public LineEndpoints line3;
+        [Header("Target white lines (length-4, non-overlapping)")]
+        [Tooltip("Define all white lines that should exist on the board. Each entry is 2 endpoints and will generate 4 contiguous cells.")]
+        [SerializeField] private List<LineEndpoints> lines = new List<LineEndpoints>(16);
+
+        public IReadOnlyList<LineEndpoints> Lines => lines;
+        public int LineCount => lines != null ? lines.Count : 0;
 
         public IEnumerable<(int poleIndex, int slotIndex)> EnumerateAllTargetCells()
         {
-            if (TryGetLineCells(line1, out var cells1, out _))
+            if (lines == null) yield break;
+            for (int i = 0; i < lines.Count; i++)
             {
-                foreach (var c in cells1) yield return c;
+                if (!TryGetLineCells(lines[i], out var cells, out string error))
+                {
+                    Debug.LogWarning($"PatternDefinition '{patternName}': line {i} invalid. {error}", this);
+                    continue;
+                }
+                foreach (var c in cells) yield return c;
             }
-            if (TryGetLineCells(line2, out var cells2, out _))
+        }
+
+        public IEnumerable<List<(int poleIndex, int slotIndex)>> EnumerateLineCellSets()
+        {
+            if (lines == null) yield break;
+            for (int i = 0; i < lines.Count; i++)
             {
-                foreach (var c in cells2) yield return c;
-            }
-            if (TryGetLineCells(line3, out var cells3, out _))
-            {
-                foreach (var c in cells3) yield return c;
+                if (!TryGetLineCells(lines[i], out var cells, out string error))
+                {
+                    Debug.LogWarning($"PatternDefinition '{patternName}': line {i} invalid. {error}", this);
+                    continue;
+                }
+                yield return cells;
             }
         }
 

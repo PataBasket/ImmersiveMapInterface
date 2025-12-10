@@ -247,53 +247,11 @@ namespace ImmersiveMapInterface.Experiment.Selection
 
         private static List<HashSet<(int pole,int slot)>> BoardPopulationService_BuildTargetLineSets(PatternDefinition pattern)
         {
-            var target = new HashSet<(int,int)>(pattern.EnumerateAllTargetCells());
-            return BoardPopulationService_BuildTargetLineSets(target);
-        }
-
-        // Duplicate of BoardPopulationService.BuildTargetLineSets to avoid coupling
-        private static List<HashSet<(int pole,int slot)>> BoardPopulationService_BuildTargetLineSets(HashSet<(int pole,int slot)> targetCells)
-        {
-            var remaining = new HashSet<(int,int)>(targetCells);
-            var result = new List<HashSet<(int,int)>>(3);
-            Vector3Int[] dirs = new[]
+            var result = new List<HashSet<(int pole, int slot)>>();
+            if (pattern == null) return result;
+            foreach (var line in pattern.EnumerateLineCellSets())
             {
-                new Vector3Int(1,0,0), new Vector3Int(0,1,0), new Vector3Int(0,0,1),
-                new Vector3Int(1,1,0), new Vector3Int(1,-1,0),
-                new Vector3Int(1,0,1), new Vector3Int(1,0,-1),
-                new Vector3Int(0,1,1), new Vector3Int(0,1,-1),
-                new Vector3Int(1,1,1), new Vector3Int(1,1,-1), new Vector3Int(1,-1,1), new Vector3Int(1,-1,-1)
-            };
-            while (remaining.Count > 0 && result.Count < 3)
-            {
-                var enumerator = remaining.GetEnumerator();
-                if (!enumerator.MoveNext()) break;
-                var cell = enumerator.Current;
-                PoleBasedBoardState.PoleIndexToGrid(cell.Item1, out int x, out int z);
-                int y = cell.Item2;
-                var origin = new Vector3Int(x,y,z);
-                bool foundGroup = false;
-                foreach (var d in dirs)
-                {
-                    var group = new HashSet<(int,int)>();
-                    for (int i = 0; i < 4; i++)
-                    {
-                        var p = origin + d * i;
-                        if (!Lines3DUtility.InBounds(p)) { group.Clear(); break; }
-                        int pole = PoleBasedBoardState.GridToPoleIndex(p.x, p.z);
-                        var tuple = (pole, p.y);
-                        if (!remaining.Contains(tuple)) { group.Clear(); break; }
-                        group.Add(tuple);
-                    }
-                    if (group.Count == 4)
-                    {
-                        foreach (var g in group) remaining.Remove(g);
-                        result.Add(group);
-                        foundGroup = true;
-                        break;
-                    }
-                }
-                if (!foundGroup) remaining.Remove(cell);
+                result.Add(new HashSet<(int pole, int slot)>(line));
             }
             return result;
         }

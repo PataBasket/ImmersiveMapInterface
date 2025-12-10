@@ -1,0 +1,113 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0732615db2ace24f855ab9330529841, type: 3}
+  m_Name: PatternDefinition_SetB
+  m_EditorClassIdentifier: 
+  patternId: 9f740c05-28e9-4e1a-b63d-da9939d994a5
+  patternName: Pattern Set B
+  lines:
+  - a:
+      poleIndex: 49
+      slotIndex: 3
+    b:
+      poleIndex: 49
+      slotIndex: 6
+  - a:
+      poleIndex: 55
+      slotIndex: 2
+    b:
+      poleIndex: 55
+      slotIndex: 5
+  - a:
+      poleIndex: 45
+      slotIndex: 0
+    b:
+      poleIndex: 45
+      slotIndex: 3
+  - a:
+      poleIndex: 38
+      slotIndex: 1
+    b:
+      poleIndex: 38
+      slotIndex: 4
+  - a:
+      poleIndex: 30
+      slotIndex: 4
+    b:
+      poleIndex: 30
+      slotIndex: 7
+  - a:
+      poleIndex: 9
+      slotIndex: 2
+    b:
+      poleIndex: 12
+      slotIndex: 2
+  - a:
+      poleIndex: 40
+      slotIndex: 4
+    b:
+      poleIndex: 43
+      slotIndex: 4
+  - a:
+      poleIndex: 63
+      slotIndex: 3
+    b:
+      poleIndex: 60
+      slotIndex: 3
+  - a:
+      poleIndex: 61
+      slotIndex: 1
+    b:
+      poleIndex: 58
+      slotIndex: 1
+  - a:
+      poleIndex: 21
+      slotIndex: 6
+    b:
+      poleIndex: 18
+      slotIndex: 6
+  - a:
+      poleIndex: 4
+      slotIndex: 2
+    b:
+      poleIndex: 1
+      slotIndex: 5
+  - a:
+      poleIndex: 25
+      slotIndex: 6
+    b:
+      poleIndex: 28
+      slotIndex: 3
+  - a:
+      poleIndex: 43
+      slotIndex: 0
+    b:
+      poleIndex: 16
+      slotIndex: 0
+  - a:
+      poleIndex: 44
+      slotIndex: 2
+    b:
+      poleIndex: 17
+      slotIndex: 2
+  - a:
+      poleIndex: 19
+      slotIndex: 4
+    b:
+      poleIndex: 43
+      slotIndex: 7
+  - a:
+      poleIndex: 0
+      slotIndex: 4
+    b:
+      poleIndex: 24
+      slotIndex: 1

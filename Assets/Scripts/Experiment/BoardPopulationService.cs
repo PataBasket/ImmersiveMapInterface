@@ -91,13 +91,19 @@ namespace ImmersiveMapInterface.Experiment
 
         private bool TryBuildTargetLineData(PatternDefinition pattern, out List<HashSet<(int pole, int slot)>> targetLineSets, out HashSet<(int pole, int slot)> targetCells)
         {
-            targetLineSets = new List<HashSet<(int pole, int slot)>>(3);
+            targetLineSets = new List<HashSet<(int pole, int slot)>>();
             targetCells = new HashSet<(int pole, int slot)>();
-            var lines = new[] { pattern.line1, pattern.line2, pattern.line3 };
 
-            for (int i = 0; i < lines.Length; i++)
+            var lineDefs = pattern.Lines;
+            if (lineDefs == null || lineDefs.Count == 0)
             {
-                if (!PatternDefinition.TryGetLineCells(lines[i], out var cells, out string error))
+                Debug.LogWarning("BoardPopulationService: Pattern has no target lines defined.");
+                return false;
+            }
+
+            for (int i = 0; i < lineDefs.Count; i++)
+            {
+                if (!PatternDefinition.TryGetLineCells(lineDefs[i], out var cells, out string error))
                 {
                     Debug.LogWarning($"BoardPopulationService: Pattern line {i + 1} invalid. {error}");
                     targetLineSets.Clear();
@@ -121,15 +127,9 @@ namespace ImmersiveMapInterface.Experiment
                 targetLineSets.Add(set);
             }
 
-            if (targetCells.Count != 12)
-            {
-                Debug.LogWarning($"BoardPopulationService: Pattern produced {targetCells.Count} unique cells; expected 12.");
-                return false;
-            }
-
             if (logDetails)
             {
-                Debug.Log("BoardPopulationService: Pattern validated successfully.");
+                Debug.Log($"BoardPopulationService: Pattern validated successfully with {targetLineSets.Count} lines.");
             }
 
             return true;
