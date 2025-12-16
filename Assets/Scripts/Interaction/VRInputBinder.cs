@@ -20,9 +20,6 @@ namespace ImmersiveMapInterface.Interaction
         public Transform rightHandTransform;
 
         [Header("Settings")]
-        [Range(0f, 1f)]
-        public float triggerThreshold = 0.5f;
-        public bool usePrimaryButtonForSelect = true;
         public float grabRayDistance = 25f;
         public LayerMask grabRayMask = ~0;
 
@@ -70,12 +67,7 @@ namespace ImmersiveMapInterface.Interaction
 
         private void HandleSelectionInput()
         {
-            float triggerVal = ReadFloat(rightController, CommonUsages.trigger);
-            bool triggerPressed = triggerVal >= triggerThreshold || ReadBool(rightController, CommonUsages.triggerButton);
-            if (usePrimaryButtonForSelect)
-            {
-                triggerPressed = triggerPressed || ReadBool(rightController, CommonUsages.primaryButton);
-            }
+            bool triggerPressed = ReadBool(rightController, CommonUsages.primaryButton);
             if (triggerPressed && !prevTrigger)
             {
                 selection?.TrySelectAtPointer();
@@ -85,7 +77,7 @@ namespace ImmersiveMapInterface.Interaction
             bool bPressed = ReadBool(rightController, CommonUsages.secondaryButton);
             if (bPressed && !prevSecondaryButton)
             {
-                selection?.ClearSelection();
+                selection?.CancelPendingSelection();
             }
             prevSecondaryButton = bPressed;
         }

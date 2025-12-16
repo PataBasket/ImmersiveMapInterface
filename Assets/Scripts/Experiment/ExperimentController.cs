@@ -31,6 +31,7 @@ namespace ImmersiveMapInterface.Experiment
             {
                 selection.OnWrongAttemptEvent += HandleWrongAttempt;
                 selection.OnCorrectLineFoundEvent += HandleCorrectLineFound;
+                selection.OnSelectionCanceledEvent += HandleSelectionCanceled;
             }
         }
 
@@ -40,6 +41,7 @@ namespace ImmersiveMapInterface.Experiment
             {
                 selection.OnWrongAttemptEvent -= HandleWrongAttempt;
                 selection.OnCorrectLineFoundEvent -= HandleCorrectLineFound;
+                selection.OnSelectionCanceledEvent -= HandleSelectionCanceled;
             }
         }
 
@@ -78,6 +80,10 @@ namespace ImmersiveMapInterface.Experiment
         {
             if (logger != null) logger.OnCorrectLineFound();
         }
+
+        private void HandleSelectionCanceled()
+        {
+            if (logger != null) logger.OnSelectionCanceled();
+        }
     }
 }
-

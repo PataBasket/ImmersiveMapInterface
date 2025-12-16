@@ -1,25 +1,99 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using ImmersiveMapInterface.Interaction;
 using UnityEngine;
 
 namespace ImmersiveMapInterface.Experiment.Logging
 {
+    /// <summary>
+    /// Aggregates per-trial metrics (found lines, detection intervals, cancels, movement time, etc.)
+    /// and persists them to CSV (and later GAS).
+    /// </summary>
     public class ExperimentLogger : MonoBehaviour
     {
-        [Header("Config")]
+        [Header("Config & References")]
         public ExperimentConfig config;
+        public BirdHeadLocomotion locomotion;
+        [Tooltip("Miniature BoardGrabRotate (used to measure manipulation time in Internal+Miniature).")]
+        public BoardGrabRotate miniatureManipulator;
 
-        private DateTime startTime;
-        private readonly List<TimeSpan> perLineTimes = new();
-        private int wrongAttempts = 0;
-        private bool running = false;
+        [Header("Fallbacks")]
+        [Tooltip("Used when ExperimentConfig is missing or has invalid values.")]
+        [Min(1f)] public float defaultTimeLimitSeconds = 180f;
+
+        private DateTime startTimeUtc;
+        private float elapsedSeconds;
+        private float timeLimitSeconds;
+        private bool running;
+
+        private readonly List<float> detectionIntervals = new();
+        private float lastDetectionElapsed;
+        private int foundLines;
+        private int wrongAttempts;
+        private int cancelCount;
+
+        private float moveActiveSeconds;
+        private float miniatureManipSeconds;
+
+        private void Reset()
+        {
+            if (locomotion == null)
+            {
+                locomotion = FindObjectOfType<BirdHeadLocomotion>(true);
+            }
+            if (miniatureManipulator == null)
+            {
+                foreach (var rotate in FindObjectsOfType<BoardGrabRotate>(true))
+                {
+                    if (rotate != null && rotate.gameObject.name.ToLower().Contains("mini"))
+                    {
+                        miniatureManipulator = rotate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void Update()
+        {
+            if (!running) return;
+
+            float dt = Time.deltaTime;
+            elapsedSeconds += dt;
+
+            if (ShouldTrackMiniatureMetrics())
+            {
+                if (locomotion != null && locomotion.IsMoving)
+                {
+                    moveActiveSeconds += dt;
+                }
+
+                if (miniatureManipulator != null && miniatureManipulator.IsGrabbing)
+                {
+                    miniatureManipSeconds += dt;
+                }
+            }
+
+            if (elapsedSeconds >= timeLimitSeconds)
+            {
+                FinishSession();
+            }
+        }
 
         public void StartSession()
         {
-            perLineTimes.Clear();
+            detectionIntervals.Clear();
+            foundLines = 0;
             wrongAttempts = 0;
-            startTime = DateTime.UtcNow;
+            cancelCount = 0;
+            moveActiveSeconds = 0f;
+            miniatureManipSeconds = 0f;
+            elapsedSeconds = 0f;
+            lastDetectionElapsed = 0f;
+            timeLimitSeconds = ResolveTimeLimit();
+            startTimeUtc = DateTime.UtcNow;
             running = true;
         }
 
@@ -30,28 +104,51 @@ namespace ImmersiveMapInterface.Experiment.Logging
 
         public void OnWrongAttempt()
         {
-            if (running) wrongAttempts++;
+            if (!running) return;
+            wrongAttempts++;
         }
 
         public void OnCorrectLineFound()
         {
             if (!running) return;
-            var now = DateTime.UtcNow;
-            perLineTimes.Add(now - startTime);
+            foundLines++;
+            float interval = Mathf.Max(0f, elapsedSeconds - lastDetectionElapsed);
+            detectionIntervals.Add(interval);
+            lastDetectionElapsed = elapsedSeconds;
+        }
+
+        public void OnSelectionCanceled()
+        {
+            if (!running) return;
+            cancelCount++;
         }
 
         public void FinishSession()
         {
             if (!running) return;
-            var total = DateTime.UtcNow - startTime;
             running = false;
-            PersistLocalCsv(total);
-            // TODO: add GAS POST when endpoint is available
+            PersistLocalCsv();
+            // TODO: add Google Apps Script submission.
         }
 
-        private void PersistLocalCsv(TimeSpan total)
+        private float ResolveTimeLimit()
+        {
+            if (config != null && config.timeLimitSeconds > 0f)
+            {
+                return config.timeLimitSeconds;
+            }
+            return defaultTimeLimitSeconds;
+        }
+
+        private bool ShouldTrackMiniatureMetrics()
+        {
+            return config != null && config.condition == ExperimentCondition.InternalWithMiniature;
+        }
+
+        private void PersistLocalCsv()
         {
             if (config != null && !config.saveCsvFallback) return;
+
             try
             {
                 string dir = Application.persistentDataPath;
@@ -61,17 +158,21 @@ namespace ImmersiveMapInterface.Experiment.Logging
                 {
                     if (writeHeader)
                     {
-                        sw.WriteLine("timestamp,subjectId,condition,patternId,totalSeconds,line1Seconds,line2Seconds,line3Seconds,wrongAttempts,device");
+                        sw.WriteLine("timestamp,subjectId,condition,patternId,timeLimitSec,totalSeconds,foundLines,wrongSelections,cancelCount,detectionIntervals,moveTime,miniManipTime,device");
                     }
-                    string device = SystemInfo.deviceModel;
+
                     string ts = DateTime.UtcNow.ToString("o");
                     string subj = config != null ? config.subjectId : "";
                     string cond = config != null ? config.condition.ToString() : "";
                     string pat = config != null && config.pattern != null ? config.pattern.patternId : "";
-                    string l1 = perLineTimes.Count > 0 ? perLineTimes[0].TotalSeconds.ToString("F3") : "";
-                    string l2 = perLineTimes.Count > 1 ? perLineTimes[1].TotalSeconds.ToString("F3") : "";
-                    string l3 = perLineTimes.Count > 2 ? perLineTimes[2].TotalSeconds.ToString("F3") : "";
-                    sw.WriteLine($"{ts},{subj},{cond},{pat},{total.TotalSeconds:F3},{l1},{l2},{l3},{wrongAttempts},{device}");
+                    string detection = detectionIntervals.Count > 0
+                        ? string.Join("|", detectionIntervals.Select(v => v.ToString("F3")))
+                        : "";
+                    string moveTime = ShouldTrackMiniatureMetrics() ? moveActiveSeconds.ToString("F3") : "";
+                    string miniTime = ShouldTrackMiniatureMetrics() ? miniatureManipSeconds.ToString("F3") : "";
+                    string device = SystemInfo.deviceModel;
+
+                    sw.WriteLine($"{ts},{subj},{cond},{pat},{timeLimitSeconds:F1},{elapsedSeconds:F3},{foundLines},{wrongAttempts},{cancelCount},{detection},{moveTime},{miniTime},{device}");
                 }
                 Debug.Log($"ExperimentLogger: wrote CSV to {path}");
             }
@@ -82,4 +183,3 @@ namespace ImmersiveMapInterface.Experiment.Logging
         }
     }
 }
-

@@ -16181,7 +16181,7 @@ Light:
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
   m_Shadows:
-    m_Type: 2
+    m_Type: 0
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
@@ -40668,7 +40668,7 @@ MonoBehaviour:
   miniatureFollowsHeadYaw: 1
   overrideBounds: 1
   boundsCenterOverride: {fileID: 1660730928}
-  boundsHalfSizeOverride: {x: 5, y: 5, z: 5}
+  boundsHalfSizeOverride: {x: 6, y: 5, z: 6}
 --- !u!4 &1302507464
 Transform:
   m_ObjectHideFlags: 0

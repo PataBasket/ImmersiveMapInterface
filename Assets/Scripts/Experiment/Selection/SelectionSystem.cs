@@ -36,6 +36,7 @@ namespace ImmersiveMapInterface.Experiment.Selection
         // Events for external systems (logger, UI)
         public System.Action OnWrongAttemptEvent;
         public System.Action OnCorrectLineFoundEvent;
+        public System.Action OnSelectionCanceledEvent;
 
         [Header("Highlight")]
         public ImmersiveMapInterface.Visualization.FoundLinesHighlighter highlighter;
@@ -59,7 +60,14 @@ namespace ImmersiveMapInterface.Experiment.Selection
 
         public void ClearSelection()
         {
-            hasFirst = false;
+            ResetPendingSelection(true);
+        }
+
+        public void CancelPendingSelection()
+        {
+            if (!hasFirst) return;
+            ResetPendingSelection(true);
+            OnSelectionCanceledEvent?.Invoke();
         }
 
         private void Update()
@@ -125,7 +133,7 @@ namespace ImmersiveMapInterface.Experiment.Selection
             {
                 if (logDebug) Debug.Log("Selection: endpoints do not form a straight length-4 line.");
                 OnWrongAttempt();
-                hasFirst = false;
+                ResetPendingSelection(true);
                 return;
             }
 
@@ -141,7 +149,7 @@ namespace ImmersiveMapInterface.Experiment.Selection
                 if (logDebug) Debug.Log("Selection: not a target line (will not highlight red).");
                 OnWrongAttempt();
             }
-            hasFirst = false;
+            ResetPendingSelection(true);
         }
 
         private bool RaycastToPiece(Vector3 origin, Vector3 dir, out int pole, out int slot)
@@ -265,8 +273,8 @@ namespace ImmersiveMapInterface.Experiment.Selection
 
         private void OnWrongAttempt()
         {
-            if (highlighter != null) { highlighter.ClearPreview(); highlighter.ClearHover(); }
-            OnWrongAttemptEvent?.Invoke();
+                if (highlighter != null) { highlighter.ClearPreview(); highlighter.ClearHover(); }
+                OnWrongAttemptEvent?.Invoke();
         }
 
         private void OnCorrectLineFound()
@@ -274,7 +282,16 @@ namespace ImmersiveMapInterface.Experiment.Selection
             if (highlighter != null) { highlighter.ClearPreview(); highlighter.ClearHover(); }
             OnCorrectLineFoundEvent?.Invoke();
         }
+
+        private void ResetPendingSelection(bool clearVisuals)
+        {
+            hasFirst = false;
+            lastClick = (-1, -1);
+            if (clearVisuals && highlighter != null)
+            {
+                highlighter.ClearPreview();
+                highlighter.ClearHover();
+            }
+        }
     }
 }
-
-

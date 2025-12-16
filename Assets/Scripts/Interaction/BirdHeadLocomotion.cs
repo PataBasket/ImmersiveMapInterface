@@ -32,7 +32,9 @@ namespace ImmersiveMapInterface.Interaction
 		private InputDevice rightHandDevice;
 		private float initialY;
 
-		private void Reset()
+        public bool IsMoving { get; private set; }
+
+        private void Reset()
 		{
 			AutoAssignReferences();
 		}
@@ -79,8 +81,9 @@ namespace ImmersiveMapInterface.Interaction
 			{
 				TryCacheDevices();
 			}
-			Vector2 move = ReadAxis(leftHandDevice, CommonUsages.primary2DAxis);
-			Vector2 look2 = allowVerticalAdjust ? ReadAxisWithFallback(rightHandDevice) : Vector2.zero;
+            Vector2 move = ReadAxis(leftHandDevice, CommonUsages.primary2DAxis);
+            IsMoving = move.sqrMagnitude > 0.0001f;
+            Vector2 look2 = allowVerticalAdjust ? ReadAxisWithFallback(rightHandDevice) : Vector2.zero;
 			if (!leftHandDevice.isValid && Application.isPlaying)
 			{
 				// Simple one-shot hint if controllers are not detected
@@ -157,4 +160,3 @@ namespace ImmersiveMapInterface.Interaction
 		}
 	}
 }
-
