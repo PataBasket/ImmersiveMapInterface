@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using ImmersiveMapInterface.Interaction;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace ImmersiveMapInterface.Experiment.Logging
 {
@@ -36,6 +38,24 @@ namespace ImmersiveMapInterface.Experiment.Logging
 
         private float moveActiveSeconds;
         private float miniatureManipSeconds;
+
+        [System.Serializable]
+        private class TrialRecord
+        {
+            public string timestamp;
+            public string subjectId;
+            public string condition;
+            public string patternId;
+            public float timeLimitSec;
+            public float totalSeconds;
+            public int foundLines;
+            public int wrongSelections;
+            public int cancelCount;
+            public string detectionIntervals;
+            public string moveTime;
+            public string miniManipTime;
+            public string device;
+        }
 
         private void Reset()
         {
@@ -127,8 +147,9 @@ namespace ImmersiveMapInterface.Experiment.Logging
         {
             if (!running) return;
             running = false;
-            PersistLocalCsv();
-            // TODO: add Google Apps Script submission.
+            var record = BuildRecord();
+            PersistLocalCsv(record);
+            TrySendToGas(record);
         }
 
         private float ResolveTimeLimit()
@@ -145,7 +166,30 @@ namespace ImmersiveMapInterface.Experiment.Logging
             return config != null && config.condition == ExperimentCondition.InternalWithMiniature;
         }
 
-        private void PersistLocalCsv()
+        private TrialRecord BuildRecord()
+        {
+            bool trackMini = ShouldTrackMiniatureMetrics();
+            return new TrialRecord
+            {
+                timestamp = DateTime.UtcNow.ToString("o"),
+                subjectId = config != null ? config.subjectId : "",
+                condition = config != null ? config.condition.ToString() : "",
+                patternId = config != null && config.pattern != null ? config.pattern.patternId : "",
+                timeLimitSec = timeLimitSeconds,
+                totalSeconds = elapsedSeconds,
+                foundLines = foundLines,
+                wrongSelections = wrongAttempts,
+                cancelCount = cancelCount,
+                detectionIntervals = detectionIntervals.Count > 0
+                    ? string.Join("|", detectionIntervals.Select(v => v.ToString("F3")))
+                    : "",
+                moveTime = trackMini ? moveActiveSeconds.ToString("F3") : "",
+                miniManipTime = trackMini ? miniatureManipSeconds.ToString("F3") : "",
+                device = SystemInfo.deviceModel
+            };
+        }
+
+        private void PersistLocalCsv(TrialRecord record)
         {
             if (config != null && !config.saveCsvFallback) return;
 
@@ -161,24 +205,40 @@ namespace ImmersiveMapInterface.Experiment.Logging
                         sw.WriteLine("timestamp,subjectId,condition,patternId,timeLimitSec,totalSeconds,foundLines,wrongSelections,cancelCount,detectionIntervals,moveTime,miniManipTime,device");
                     }
 
-                    string ts = DateTime.UtcNow.ToString("o");
-                    string subj = config != null ? config.subjectId : "";
-                    string cond = config != null ? config.condition.ToString() : "";
-                    string pat = config != null && config.pattern != null ? config.pattern.patternId : "";
-                    string detection = detectionIntervals.Count > 0
-                        ? string.Join("|", detectionIntervals.Select(v => v.ToString("F3")))
-                        : "";
-                    string moveTime = ShouldTrackMiniatureMetrics() ? moveActiveSeconds.ToString("F3") : "";
-                    string miniTime = ShouldTrackMiniatureMetrics() ? miniatureManipSeconds.ToString("F3") : "";
-                    string device = SystemInfo.deviceModel;
-
-                    sw.WriteLine($"{ts},{subj},{cond},{pat},{timeLimitSeconds:F1},{elapsedSeconds:F3},{foundLines},{wrongAttempts},{cancelCount},{detection},{moveTime},{miniTime},{device}");
+                    sw.WriteLine($"{record.timestamp},{record.subjectId},{record.condition},{record.patternId},{record.timeLimitSec:F1},{record.totalSeconds:F3},{record.foundLines},{record.wrongSelections},{record.cancelCount},{record.detectionIntervals},{record.moveTime},{record.miniManipTime},{record.device}");
                 }
                 Debug.Log($"ExperimentLogger: wrote CSV to {path}");
             }
             catch (Exception ex)
             {
                 Debug.LogWarning($"ExperimentLogger: failed to write CSV: {ex.Message}");
+            }
+        }
+
+        private void TrySendToGas(TrialRecord record)
+        {
+            if (config == null || string.IsNullOrWhiteSpace(config.gasUrl)) return;
+            StartCoroutine(SendToGasRoutine(record, config.gasUrl));
+        }
+
+        private System.Collections.IEnumerator SendToGasRoutine(TrialRecord record, string url)
+        {
+            string json = JsonUtility.ToJson(record);
+            using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+
+            yield return request.SendWebRequest();
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogWarning($"ExperimentLogger: GAS POST failed ({request.result}) {request.error}");
+            }
+            else
+            {
+                Debug.Log("ExperimentLogger: GAS POST succeeded.");
             }
         }
     }
