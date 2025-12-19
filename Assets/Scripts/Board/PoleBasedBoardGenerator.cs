@@ -179,6 +179,36 @@ namespace ImmersiveMapInterface.Board
                     }
                 }
             }
+            DestroyOrphanedPieceChildren();
+        }
+
+        private void DestroyOrphanedPieceChildren()
+        {
+            Transform parent = piecesRoot != null ? piecesRoot : transform;
+            if (parent == null) return;
+            for (int i = parent.childCount - 1; i >= 0; i--)
+            {
+                var child = parent.GetChild(i);
+                if (child == null) continue;
+                string name = child.name;
+                if (!name.StartsWith("Piece_", StringComparison.OrdinalIgnoreCase)) continue;
+                bool tracked = false;
+                for (int pole = 0; pole < PoleBasedBoardState.PoleCount && !tracked; pole++)
+                {
+                    for (int slot = 0; slot < PoleBasedBoardState.PiecesPerPole; slot++)
+                    {
+                        if (pieceObjects[pole, slot] == child.gameObject)
+                        {
+                            tracked = true;
+                            break;
+                        }
+                    }
+                }
+                if (!tracked)
+                {
+                    DestroyPieceObject(child.gameObject);
+                }
+            }
         }
 
         private void HandlePieceChanged(int poleIndex, int slotIndex, PoleBasedBoardState.PieceColor color)
