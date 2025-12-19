@@ -26,8 +26,8 @@ namespace ImmersiveMapInterface.Interaction
                 ApplyDefaults(toggle);
             }
 
-            CloneControllerVisual("OVRLeftControllerVisual", LeftCloneName, new[] { "LeftPointer", "LeftControllerAnchor", "LeftHandAnchor" });
-            CloneControllerVisual("OVRRightControllerVisual", RightCloneName, new[] { "RightPointer", "RightControllerAnchor", "RightHandAnchor" });
+            CloneControllerVisual("OVRLeftControllerVisual", LeftCloneName, new[] { "LeftPointer", "LeftControllerAnchor", "LeftHandAnchor" }, true);
+            CloneControllerVisual("OVRRightControllerVisual", RightCloneName, new[] { "RightPointer", "RightControllerAnchor", "RightHandAnchor" }, false);
         }
 
         private static GameObject FindRigRoot()
@@ -56,7 +56,7 @@ namespace ImmersiveMapInterface.Interaction
             toggle.Apply();
         }
 
-        private static void CloneControllerVisual(string sourceName, string cloneName, string[] anchorCandidates)
+        private static void CloneControllerVisual(string sourceName, string cloneName, string[] anchorCandidates, bool wantLeft)
         {
             if (GameObject.Find(cloneName) != null) return;
             var source = GameObject.Find(sourceName);
@@ -72,6 +72,14 @@ namespace ImmersiveMapInterface.Interaction
             clone.name = cloneName;
             clone.SetActive(true);
 
+            var helper = clone.GetComponent<OVRControllerHelper>();
+            if (helper != null)
+            {
+                helper.enabled = false;
+            }
+
+            ActivateSingleVariant(clone.transform, wantLeft);
+
             foreach (var col in clone.GetComponentsInChildren<Collider>(true))
             {
                 col.enabled = false;
@@ -84,6 +92,70 @@ namespace ImmersiveMapInterface.Interaction
 
             source.SetActive(false);
         }
+
+        private static void ActivateSingleVariant(Transform root, bool wantLeft)
+        {
+            if (root == null) return;
+            Transform target = FindBestVariant(root, wantLeft);
+            if (target == null) return;
+
+            var top = target;
+            while (top.parent != null && top.parent != root)
+            {
+                top = top.parent;
+            }
+
+            foreach (Transform child in root)
+            {
+                if (child == null) continue;
+                child.gameObject.SetActive(child == top);
+            }
+
+            target.gameObject.SetActive(true);
+        }
+
+        private static Transform FindBestVariant(Transform root, bool wantLeft)
+        {
+            if (root == null) return null;
+            Transform best = null;
+            int bestScore = int.MaxValue;
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child == null) continue;
+                string lower = child.name.ToLowerInvariant();
+                bool hasLeft = lower.Contains("left");
+                bool hasRight = lower.Contains("right");
+                if (!(hasLeft ^ hasRight)) continue;
+                if (wantLeft != hasLeft) continue;
+
+                int score = variantPriority.Length;
+                for (int i = 0; i < variantPriority.Length; i++)
+                {
+                    if (lower.Contains(variantPriority[i]))
+                    {
+                        score = i;
+                        break;
+                    }
+                }
+
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    best = child;
+                }
+            }
+            return best;
+        }
+
+        private static readonly string[] variantPriority =
+        {
+            "touchplus",
+            "touchpro",
+            "quest2",
+            "andrifts", // Quest & Rift S combo
+            "rift",
+            "quest"
+        };
 
         private static Transform FindFirst(string[] names)
         {
