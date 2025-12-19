@@ -45,6 +45,8 @@ namespace ImmersiveMapInterface.Interaction
         public bool requireAnchor = false;
         public float anchorSnapDistance = 0.25f;
         public float anchorSnapDistanceRay = 0.35f;
+        [Tooltip("Extra tolerance added on top of anchorSnapDistanceRay to make ray grabs more forgiving.")]
+        [Min(0f)] public float anchorRayAssistPadding = 0.1f;
         public bool alignGrabToAnchor = true;
         public bool visualizeAnchors = true;
         public Color anchorGizmoColor = new Color(0.5f, 0.8f, 1f, 0.6f);
@@ -186,7 +188,8 @@ namespace ImmersiveMapInterface.Interaction
             GrabAnchor bestAnchor = null;
             float bestDist = float.MaxValue;
             bool hasAnchors = grabAnchors != null && grabAnchors.Length > 0;
-            float snapDistance = isRay ? anchorSnapDistanceRay : anchorSnapDistance;
+            float baseSnapDistance = isRay ? anchorSnapDistanceRay : anchorSnapDistance;
+            float snapDistance = baseSnapDistance + (isRay ? anchorRayAssistPadding : 0f);
 
             if (hasAnchors)
             {

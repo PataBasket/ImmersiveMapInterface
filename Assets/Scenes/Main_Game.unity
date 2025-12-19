@@ -101273,7 +101273,7 @@ Transform:
   m_GameObject: {fileID: 1948996180}
   serializedVersion: 2
   m_LocalRotation: {x: -0.24379133, y: -0.3682388, z: 0.10087598, w: -0.89151}
-  m_LocalPosition: {x: -17.173965, y: 20.487032, z: -17.353592}
+  m_LocalPosition: {x: -14.6, y: 18.3, z: -14.7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -109013,7 +109013,7 @@ MonoBehaviour:
   alignGrabToAnchor: 1
   visualizeAnchors: 1
   anchorGizmoColor: {r: 0.5, g: 0.8, b: 1, a: 0.6}
-  anchorVisualScale: 1
+  anchorVisualScale: 1.5
   allowRayInput: 1
   logAnchorVisuals: 0
 --- !u!1 &2071955569

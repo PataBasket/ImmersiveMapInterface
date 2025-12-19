@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0732615db2ace24f855ab9330529841, type: 3}
   m_Name: PatternDefinition
   m_EditorClassIdentifier: 
-  patternId: c81443a9-4d20-4585-8b81-c122e52d6f48
+  patternId: pattern_A
   patternName: Pattern Set A
   lines:
   - a:
