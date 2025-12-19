@@ -170,6 +170,9 @@ namespace ImmersiveMapInterface.Experiment.Selection
             return false;
         }
 
+        public float CurrentPointerLength => GetEffectiveMaxDistance();
+        public LayerMask PointerLayerMask => pickMask;
+
         private float GetEffectiveMaxDistance()
         {
             if (config == null)

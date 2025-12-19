@@ -15,6 +15,10 @@ namespace ImmersiveMapInterface.Interaction
         public GameObject leftHandVisual;
         public GameObject rightHandVisual;
 
+        [Header("Anchor Name Candidates")]
+        public string[] leftAnchorNames = { "LeftPointer", "LeftControllerAnchor", "LeftHandAnchor", "LeftHandAnchorDetached" };
+        public string[] rightAnchorNames = { "RightPointer", "RightControllerAnchor", "RightHandAnchor", "RightHandAnchorDetached" };
+
         [Header("Also Toggle (optional)")]
         public GameObject[] extraControllerVisuals;
         public GameObject[] extraHandVisuals;
@@ -27,6 +31,8 @@ namespace ImmersiveMapInterface.Interaction
 
         [Header("Proxy (when controller models missing)")]
         public bool spawnProxyIfMissing = true;
+        [Tooltip("If true, prefer lightweight proxy meshes whenever no visible renderer is found under the assigned controller objects.")]
+        public bool preferProxyControllers = false;
         public Vector3 proxyLocalPosition = new Vector3(0f, -0.03f, 0.06f);
         public Vector3 proxyLocalScale = new Vector3(0.03f, 0.02f, 0.12f);
 
@@ -48,10 +54,10 @@ namespace ImmersiveMapInterface.Interaction
             if (spawnProxyIfMissing)
             {
                 // If controller visuals are missing, spawn simple proxies under hand anchors
-                if (leftControllerVisual == null)
-                    leftControllerVisual = CreateControllerProxy(FindAnchor("LeftHandAnchor"), "ControllerProxy_L");
-                if (rightControllerVisual == null)
-                    rightControllerVisual = CreateControllerProxy(FindAnchor("RightHandAnchor"), "ControllerProxy_R");
+                if (leftControllerVisual == null || preferProxyControllers || !HasRenderable(leftControllerVisual))
+                    leftControllerVisual = CreateControllerProxy(FindAnchor(leftAnchorNames), "ControllerProxy_L");
+                if (rightControllerVisual == null || preferProxyControllers || !HasRenderable(rightControllerVisual))
+                    rightControllerVisual = CreateControllerProxy(FindAnchor(rightAnchorNames), "ControllerProxy_R");
             }
         }
 
@@ -153,14 +159,27 @@ namespace ImmersiveMapInterface.Interaction
 
         private Transform FindAnchor(string name)
         {
+            return FindAnchor(new[] { name });
+        }
+
+        private Transform FindAnchor(string[] names)
+        {
             var t = transform;
             var stack = new System.Collections.Generic.Stack<Transform>();
             stack.Push(t);
             while (stack.Count > 0)
             {
                 var cur = stack.Pop();
-                if (cur.name == name) return cur;
+                foreach (var name in names)
+                {
+                    if (cur.name == name) return cur;
+                }
                 for (int i = 0; i < cur.childCount; i++) stack.Push(cur.GetChild(i));
+            }
+            foreach (var name in names)
+            {
+                var go = GameObject.Find(name);
+                if (go != null) return go.transform;
             }
             return null;
         }
@@ -186,6 +205,17 @@ namespace ImmersiveMapInterface.Interaction
             var col = go.GetComponent<Collider>();
             if (col) col.enabled = false; // not interactive
             return go;
+        }
+
+        private static bool HasRenderable(GameObject root)
+        {
+            if (root == null) return false;
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+            foreach (var r in renderers)
+            {
+                if (r.enabled && r.sharedMaterial != null) return true;
+            }
+            return false;
         }
     }
 }
