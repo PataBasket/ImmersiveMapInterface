@@ -75,6 +75,12 @@ namespace ImmersiveMapInterface.Visualization
         private bool boardStateSubscribed = false;
         private const int ExpectedPieceCount = PoleBasedBoardState.PoleCount * PoleBasedBoardState.PiecesPerPole;
 
+        public float PoleSpacing => poleSpacing;
+        public float PieceSpacing => pieceSpacing;
+        public bool UseWorldScale => useWorldScale;
+        public float MiniatureScale => miniatureScale;
+        public float WorldSlotSpacing => worldSlotSpacing;
+
 
         private void OnValidate()
         {

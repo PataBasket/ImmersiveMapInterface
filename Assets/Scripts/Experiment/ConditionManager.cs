@@ -23,6 +23,7 @@ namespace ImmersiveMapInterface.Experiment
         public ImmersiveMapInterface.Interaction.BoardGrabRotate miniatureGrabRotate; // optional BoardGrabRotate for miniature
         public ImmersiveMapInterface.Visualization.MiniatureFollower miniatureFollower;  // optional follower for miniature
         public ImmersiveMapInterface.Visualization.MiniaturePoleBoardGenerator miniatureBoardGenerator;
+        public MiniatureUserIndicator miniatureUserIndicator;
 
         [Header("Anchors")] 
         public Transform birdAnchor;       // top-down view anchor
@@ -143,6 +144,38 @@ namespace ImmersiveMapInterface.Experiment
                 if (miniatureGrabRotate != null)
                 {
                     miniatureGrabRotate.enabled = miniActive && config.condition == ExperimentCondition.InternalWithMiniature;
+                }
+
+                if (miniatureUserIndicator != null)
+                {
+                    if (miniatureUserIndicator.playerTransform == null && headTransform != null)
+                    {
+                        miniatureUserIndicator.playerTransform = headTransform;
+                    }
+                    if (miniatureUserIndicator.worldBoardOrigin == null && boardRoot != null)
+                    {
+                        miniatureUserIndicator.worldBoardOrigin = boardRoot;
+                    }
+                    if (miniatureUserIndicator.worldBoardGenerator == null && boardRoot != null)
+                    {
+                        var generator = boardRoot.GetComponentInChildren<PoleBasedBoardGenerator>();
+                        if (generator != null) miniatureUserIndicator.worldBoardGenerator = generator;
+                    }
+                    if (miniatureUserIndicator.miniatureBoard == null && miniatureRoot != null)
+                    {
+                        var mb = miniatureRoot.GetComponentInChildren<MiniaturePoleBoardGenerator>(true);
+                        if (mb != null) miniatureUserIndicator.miniatureBoard = mb;
+                    }
+                    if (miniatureUserIndicator.indicatorParent == null && miniatureRoot != null)
+                    {
+                        var pieces = miniatureRoot.transform.Find("MiniaturePieces");
+                        miniatureUserIndicator.indicatorParent = pieces != null ? pieces : miniatureRoot.transform;
+                    }
+                    if (miniatureUserIndicator.locomotionSource == null && internalLocomotion != null)
+                    {
+                        miniatureUserIndicator.locomotionSource = internalLocomotion;
+                    }
+                    miniatureUserIndicator.ForceImmediateSync();
                 }
             }
         }
