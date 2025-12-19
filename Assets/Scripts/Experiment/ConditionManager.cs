@@ -22,10 +22,16 @@ namespace ImmersiveMapInterface.Experiment
         public GameObject miniatureRoot; // container for miniature
         public ImmersiveMapInterface.Interaction.BoardGrabRotate miniatureGrabRotate; // optional BoardGrabRotate for miniature
         public ImmersiveMapInterface.Visualization.MiniatureFollower miniatureFollower;  // optional follower for miniature
+        public ImmersiveMapInterface.Visualization.MiniaturePoleBoardGenerator miniatureBoardGenerator;
+        public MiniatureUserIndicator miniatureUserIndicator;
 
         [Header("Anchors")] 
         public Transform birdAnchor;       // top-down view anchor
         public Transform internalStartAnchor; // internal view start anchor
+
+        [Header("Miniature Options")]
+        [Tooltip("If true, the miniature will align its yaw with the head while active.")]
+        public bool miniatureFollowsHeadYaw = false;
 
         [Header("Bounds Override (Internal)")]
         [Tooltip("If enabled, ConditionManager will set BirdHeadLocomotion bounds on ApplyCondition.")]
@@ -87,11 +93,36 @@ namespace ImmersiveMapInterface.Experiment
             {
                 birdGrabRotate.boardRoot = boardRoot;
             }
+            if (miniatureGrabRotate != null && miniatureGrabRotate.boardRoot == null && miniatureRoot != null)
+            {
+                miniatureGrabRotate.boardRoot = miniatureRoot.transform;
+            }
 
             // Miniature controls: when miniature is active, prefer grab interaction over head-follow
             if (miniatureRoot != null)
             {
                 bool miniActive = miniatureRoot.activeSelf;
+                PoleBasedBoardState sharedBoard = null;
+                if (groundRoot != null)
+                {
+                    sharedBoard = groundRoot.GetComponent<PoleBasedBoardState>();
+                }
+                if (sharedBoard == null && boardRoot != null)
+                {
+                    sharedBoard = boardRoot.GetComponentInChildren<PoleBasedBoardState>();
+                }
+                if (miniatureBoardGenerator == null)
+                {
+                    miniatureBoardGenerator = miniatureRoot.GetComponentInChildren<ImmersiveMapInterface.Visualization.MiniaturePoleBoardGenerator>(true);
+                }
+                if (miniatureBoardGenerator != null)
+                {
+                    if (sharedBoard == null)
+                    {
+                        Debug.LogWarning("ConditionManager: shared PoleBasedBoardState not found. Miniature colors may be incorrect.", this);
+                    }
+                    miniatureBoardGenerator.SetBoardState(sharedBoard);
+                }
                 if (miniatureFollower != null)
                 {
                     if (miniatureFollower.head == null && headTransform != null)
@@ -102,12 +133,49 @@ namespace ImmersiveMapInterface.Experiment
                     {
                         miniatureFollower.boardRoot = boardRoot;
                     }
+                    if (miniatureGrabRotate != null)
+                    {
+                        miniatureFollower.grabRotate = miniatureGrabRotate;
+                    }
                     miniatureFollower.enabled = miniActive;
-                    miniatureFollower.followYaw = config.condition != ExperimentCondition.InternalWithMiniature;
+                    miniatureFollower.followYaw = miniatureFollowsHeadYaw;
+                    miniatureFollower.allowYawAfterTilt = miniatureFollowsHeadYaw;
                 }
                 if (miniatureGrabRotate != null)
                 {
                     miniatureGrabRotate.enabled = miniActive && config.condition == ExperimentCondition.InternalWithMiniature;
+                }
+
+                if (miniatureUserIndicator != null)
+                {
+                    if (miniatureUserIndicator.playerTransform == null && headTransform != null)
+                    {
+                        miniatureUserIndicator.playerTransform = headTransform;
+                    }
+                    if (miniatureUserIndicator.worldBoardOrigin == null && boardRoot != null)
+                    {
+                        miniatureUserIndicator.worldBoardOrigin = boardRoot;
+                    }
+                    if (miniatureUserIndicator.worldBoardGenerator == null && boardRoot != null)
+                    {
+                        var generator = boardRoot.GetComponentInChildren<PoleBasedBoardGenerator>();
+                        if (generator != null) miniatureUserIndicator.worldBoardGenerator = generator;
+                    }
+                    if (miniatureUserIndicator.miniatureBoard == null && miniatureRoot != null)
+                    {
+                        var mb = miniatureRoot.GetComponentInChildren<MiniaturePoleBoardGenerator>(true);
+                        if (mb != null) miniatureUserIndicator.miniatureBoard = mb;
+                    }
+                    if (miniatureUserIndicator.indicatorParent == null && miniatureRoot != null)
+                    {
+                        var pieces = miniatureRoot.transform.Find("MiniaturePieces");
+                        miniatureUserIndicator.indicatorParent = pieces != null ? pieces : miniatureRoot.transform;
+                    }
+                    if (miniatureUserIndicator.locomotionSource == null && internalLocomotion != null)
+                    {
+                        miniatureUserIndicator.locomotionSource = internalLocomotion;
+                    }
+                    miniatureUserIndicator.ForceImmediateSync();
                 }
             }
         }

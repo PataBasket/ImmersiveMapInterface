@@ -15,6 +15,7 @@ MonoBehaviour:
   subjectId: test
   condition: 2
   pattern: {fileID: 11400000, guid: b2f7d37552c26564da587d3ad86adf06, type: 2}
-  gasUrl: 
+  timeLimitSeconds: 180
+  gasUrl: https://script.google.com/macros/s/AKfycbwwcbordBKWKGCn8D3rdAC4tXPeTAUAXdftzV5RGVsA8TmREXIY-jDf1IInBZk1jFd6tA/exec
   apiKey: 
   saveCsvFallback: 1

@@ -28,11 +28,22 @@ namespace ImmersiveMapInterface.Interaction
 		[SerializeField] private Transform boundsCenter; // e.g., BoardRoot
 		[SerializeField] private Vector3 boundsHalfSize = new Vector3(8f, 8f, 8f);
 
+        public bool BoundsActive => constrainToBounds && boundsCenter != null;
+        public Transform BoundsCenter => boundsCenter;
+        public Vector3 BoundsHalfSize => boundsHalfSize;
+        public float LastVerticalInput { get; private set; }
+        public Vector2 LastMoveInput { get; private set; }
+        public float MoveSpeed => moveSpeed;
+        public float StrafeSpeed => strafeSpeed;
+        public float VerticalSpeed => verticalSpeed;
+
 		private InputDevice leftHandDevice;
 		private InputDevice rightHandDevice;
 		private float initialY;
 
-		private void Reset()
+        public bool IsMoving { get; private set; }
+
+        private void Reset()
 		{
 			AutoAssignReferences();
 		}
@@ -79,8 +90,11 @@ namespace ImmersiveMapInterface.Interaction
 			{
 				TryCacheDevices();
 			}
-			Vector2 move = ReadAxis(leftHandDevice, CommonUsages.primary2DAxis);
-			Vector2 look2 = allowVerticalAdjust ? ReadAxisWithFallback(rightHandDevice) : Vector2.zero;
+            Vector2 move = ReadAxis(leftHandDevice, CommonUsages.primary2DAxis);
+            IsMoving = move.sqrMagnitude > 0.0001f;
+            Vector2 look2 = allowVerticalAdjust ? ReadAxisWithFallback(rightHandDevice) : Vector2.zero;
+            LastMoveInput = move;
+            LastVerticalInput = allowVerticalAdjust ? look2.y : 0f;
 			if (!leftHandDevice.isValid && Application.isPlaying)
 			{
 				// Simple one-shot hint if controllers are not detected
@@ -157,4 +171,3 @@ namespace ImmersiveMapInterface.Interaction
 		}
 	}
 }
-

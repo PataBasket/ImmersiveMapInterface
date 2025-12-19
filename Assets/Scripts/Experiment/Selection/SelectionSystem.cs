@@ -36,6 +36,7 @@ namespace ImmersiveMapInterface.Experiment.Selection
         // Events for external systems (logger, UI)
         public System.Action OnWrongAttemptEvent;
         public System.Action OnCorrectLineFoundEvent;
+        public System.Action OnSelectionCanceledEvent;
 
         [Header("Highlight")]
         public ImmersiveMapInterface.Visualization.FoundLinesHighlighter highlighter;
@@ -59,7 +60,14 @@ namespace ImmersiveMapInterface.Experiment.Selection
 
         public void ClearSelection()
         {
-            hasFirst = false;
+            ResetPendingSelection(true);
+        }
+
+        public void CancelPendingSelection()
+        {
+            if (!hasFirst) return;
+            ResetPendingSelection(true);
+            OnSelectionCanceledEvent?.Invoke();
         }
 
         private void Update()
@@ -125,7 +133,7 @@ namespace ImmersiveMapInterface.Experiment.Selection
             {
                 if (logDebug) Debug.Log("Selection: endpoints do not form a straight length-4 line.");
                 OnWrongAttempt();
-                hasFirst = false;
+                ResetPendingSelection(true);
                 return;
             }
 
@@ -141,7 +149,7 @@ namespace ImmersiveMapInterface.Experiment.Selection
                 if (logDebug) Debug.Log("Selection: not a target line (will not highlight red).");
                 OnWrongAttempt();
             }
-            hasFirst = false;
+            ResetPendingSelection(true);
         }
 
         private bool RaycastToPiece(Vector3 origin, Vector3 dir, out int pole, out int slot)
@@ -161,6 +169,9 @@ namespace ImmersiveMapInterface.Experiment.Selection
             }
             return false;
         }
+
+        public float CurrentPointerLength => GetEffectiveMaxDistance();
+        public LayerMask PointerLayerMask => pickMask;
 
         private float GetEffectiveMaxDistance()
         {
@@ -247,53 +258,11 @@ namespace ImmersiveMapInterface.Experiment.Selection
 
         private static List<HashSet<(int pole,int slot)>> BoardPopulationService_BuildTargetLineSets(PatternDefinition pattern)
         {
-            var target = new HashSet<(int,int)>(pattern.EnumerateAllTargetCells());
-            return BoardPopulationService_BuildTargetLineSets(target);
-        }
-
-        // Duplicate of BoardPopulationService.BuildTargetLineSets to avoid coupling
-        private static List<HashSet<(int pole,int slot)>> BoardPopulationService_BuildTargetLineSets(HashSet<(int pole,int slot)> targetCells)
-        {
-            var remaining = new HashSet<(int,int)>(targetCells);
-            var result = new List<HashSet<(int,int)>>(3);
-            Vector3Int[] dirs = new[]
+            var result = new List<HashSet<(int pole, int slot)>>();
+            if (pattern == null) return result;
+            foreach (var line in pattern.EnumerateLineCellSets())
             {
-                new Vector3Int(1,0,0), new Vector3Int(0,1,0), new Vector3Int(0,0,1),
-                new Vector3Int(1,1,0), new Vector3Int(1,-1,0),
-                new Vector3Int(1,0,1), new Vector3Int(1,0,-1),
-                new Vector3Int(0,1,1), new Vector3Int(0,1,-1),
-                new Vector3Int(1,1,1), new Vector3Int(1,1,-1), new Vector3Int(1,-1,1), new Vector3Int(1,-1,-1)
-            };
-            while (remaining.Count > 0 && result.Count < 3)
-            {
-                var enumerator = remaining.GetEnumerator();
-                if (!enumerator.MoveNext()) break;
-                var cell = enumerator.Current;
-                PoleBasedBoardState.PoleIndexToGrid(cell.Item1, out int x, out int z);
-                int y = cell.Item2;
-                var origin = new Vector3Int(x,y,z);
-                bool foundGroup = false;
-                foreach (var d in dirs)
-                {
-                    var group = new HashSet<(int,int)>();
-                    for (int i = 0; i < 4; i++)
-                    {
-                        var p = origin + d * i;
-                        if (!Lines3DUtility.InBounds(p)) { group.Clear(); break; }
-                        int pole = PoleBasedBoardState.GridToPoleIndex(p.x, p.z);
-                        var tuple = (pole, p.y);
-                        if (!remaining.Contains(tuple)) { group.Clear(); break; }
-                        group.Add(tuple);
-                    }
-                    if (group.Count == 4)
-                    {
-                        foreach (var g in group) remaining.Remove(g);
-                        result.Add(group);
-                        foundGroup = true;
-                        break;
-                    }
-                }
-                if (!foundGroup) remaining.Remove(cell);
+                result.Add(new HashSet<(int pole, int slot)>(line));
             }
             return result;
         }
@@ -307,8 +276,8 @@ namespace ImmersiveMapInterface.Experiment.Selection
 
         private void OnWrongAttempt()
         {
-            if (highlighter != null) { highlighter.ClearPreview(); highlighter.ClearHover(); }
-            OnWrongAttemptEvent?.Invoke();
+                if (highlighter != null) { highlighter.ClearPreview(); highlighter.ClearHover(); }
+                OnWrongAttemptEvent?.Invoke();
         }
 
         private void OnCorrectLineFound()
@@ -316,7 +285,16 @@ namespace ImmersiveMapInterface.Experiment.Selection
             if (highlighter != null) { highlighter.ClearPreview(); highlighter.ClearHover(); }
             OnCorrectLineFoundEvent?.Invoke();
         }
+
+        private void ResetPendingSelection(bool clearVisuals)
+        {
+            hasFirst = false;
+            lastClick = (-1, -1);
+            if (clearVisuals && highlighter != null)
+            {
+                highlighter.ClearPreview();
+                highlighter.ClearHover();
+            }
+        }
     }
 }
-
-
